@@ -1,0 +1,134 @@
+
+Linker Version 8.6.1.150212
+Input Object File: E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ
+Input Object File: E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ
+Input Object File: E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ
+Input Object File: E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ
+
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\MATH6.LIB
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\time_srsc.lib
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\ctype_srsc.lib
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\math_srsc.lib
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\stdlib_srsc.lib
+Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x\LIB\string_srsc.lib
+
+
+     Bank    Start     End      Length     Class    AvgIns    Name
+     00h     0000h     002ah    002bh      CODE               CS (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ)
+     00h     002bh     0049h    001fh      CODE               OLDMAIN (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     004ah     00c0h    0077h      CODE               IIC_SLAVE_CODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     00c1h     0262h    01a2h      CODE               HIJACK_CODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0040h     0042h    0003h      DATA     4         DS (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ)
+     00h     0043h     0049h    0007h      DATA     4.5714    IIC_SLAVE_DATAL (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     004ah     005fh    0016h      DATA     6.8636    HIJACK_DATAL (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+
+     Local Sections
+
+     Bank    Start     End      Length     Class    AvgIns    Name
+     00h     0060h     0060h    0000h      LOCAL    0         _IIC_INT_ISR (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _IIC_READ_BYTEDATA (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         IIC_ACK (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _IIC_WRITE_BYTEDATA (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND_BIAS (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND_IDLE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND_START (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND_BYTE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_SEND_STOP (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_RECEIVE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_RX_1BIT (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_PREPAREMODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_STARTIDLEMODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_RX_BYTE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_PARITY_STOPMODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     0060h     0060h    0000h      LOCAL    0         _HIJACK_ENDIDLEMODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+
+     Indepentent Local Sections
+
+     Bank    Start     End      Length     Class    AvgIns    Name
+     00h     0060h     0060h    0000h      ILOCAL   0         _CLEAR_RAM (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _INIT_PORT (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _INIT_WDT (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _INIT_SYSFREQUENCY (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _INIT_LVD (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _IIC_INIT (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
+     00h     0060h     0060h    0000h      ILOCAL   0         _HIJACK_INIT (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+
+     Public Symbols Information
+     Address            Public by Name
+     0040h[0]           F_EMI
+     004ah              HIJACK_RECEIVE_DATAH
+     004bh              HIJACK_RECEIVE_DATAL
+     004ch              HIJACK_SEND_DATA
+     0044h              IIC_RECEIVE_DATA
+     0045h              IIC_SEND_DATA
+     0041h              R_ATEMP
+     0042h              R_STATUS
+     002bh              _CLEAR_RAM
+     01e7h              _HIJACK_INIT
+     00d9h              _HIJACK_RECEIVE
+     00c1h              _HIJACK_SEND
+     00b7h              _IIC_INIT
+     004ah              _IIC_INT_ISR
+     0047h              _INIT_LVD
+     0033h              _INIT_PORT
+     0044h              _INIT_SYSFREQUENCY
+     0041h              _INIT_WDT
+
+     Address            Public by Value
+     002bh              _CLEAR_RAM
+     0033h              _INIT_PORT
+     0041h              R_ATEMP
+     0041h              _INIT_WDT
+     0042h              R_STATUS
+     0044h              _INIT_SYSFREQUENCY
+     0044h              IIC_RECEIVE_DATA
+     0045h              IIC_SEND_DATA
+     0047h              _INIT_LVD
+     004ah              HIJACK_RECEIVE_DATAH
+     004ah              _IIC_INT_ISR
+     004bh              HIJACK_RECEIVE_DATAL
+     004ch              HIJACK_SEND_DATA
+     00b7h              _IIC_INIT
+     00c1h              _HIJACK_SEND
+     00d9h              _HIJACK_RECEIVE
+     01e7h              _HIJACK_INIT
+     0040h[0]           F_EMI
+
+
+ROM Usage Statistics
+     Size      Used     Percentage
+     0400h     0263h    59%
+
+RAM Usage Statistics
+    Bank      Size      Used     Percentage
+     00h       0040h     0020h    50%
+     Total     0040h     0020h    50%
+
+Use Stack Count
+_IIC_INT_ISR: 1
+_HIJACK_SEND: 1
+_HIJACK_RECEIVE: 1
+
+Call Tree
+    _IIC_INT_ISR
+        _IIC_READ_BYTEDATA
+        IIC_ACK
+        _IIC_WRITE_BYTEDATA
+    _HIJACK_SEND
+        _HIJACK_SEND_BIAS
+        _HIJACK_SEND_IDLE
+        _HIJACK_SEND_START
+        _HIJACK_SEND_BYTE
+        _HIJACK_SEND_STOP
+    _HIJACK_RECEIVE
+        _HIJACK_RX_1BIT
+        _HIJACK_PREPAREMODE
+        _HIJACK_STARTIDLEMODE
+        _HIJACK_RX_BYTE
+        _HIJACK_PARITY_STOPMODE
+        _HIJACK_ENDIDLEMODE
+
+HLINK: Program entry point at section 'CS' (address 0) of file 'E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ'
+
+Total 0 error(s), Total 0 Warning(s)

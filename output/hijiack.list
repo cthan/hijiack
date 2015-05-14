@@ -1,0 +1,1809 @@
+				;file E:\Doing\0 音頻口通信\ASSP MCU\hijiack\source code\main.asm
+				;1	;___________________________________________________________________
+				;2	;___________________________________________________________________
+				;3	;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+				;4	;File Name :    main.asm
+				;5	;Targer :       hijack Board
+				;6	;MCU :          HT68F002
+				;7	;Version :      V00
+				;8	;Author :       ChenTing
+				;9	;Date :         2015/04/10
+				;10	;Description :  hijack 音頻通信測試
+				;11	;History : 
+				;12	;___________________________________________________________________
+				;13	;___________________________________________________________________
+				;14	
+				;15	include config.inc
+				;16	include target.inc
+				;17	include hijack.inc
+				;18	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;19	;@------------------------Library API------------------------------@
+				;20	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;21	EXTERN  _CLEAR_RAM				:NEAR
+				;22	EXTERN  _INIT_PORT				:NEAR 
+				;23	EXTERN  _INIT_WDT				:NEAR
+				;24	EXTERN  _INIT_SysFrequency		:NEAR
+				;25	EXTERN  _INIT_LVD				:NEAR
+				;26	EXTERN  _IIC_INT_ISR			:NEAR
+				;27	EXTERN  _IIC_init				:NEAR
+				;28	
+				;29	EXTERN  _hijack_Receive			:NEAR
+				;30	EXTERN  _hijack_Send			:NEAR
+				;31	EXTERN  _hijack_init			:NEAR
+				;32	
+				;33	EXTERN	hijack_Receive_DataH	:BYTE
+				;34	EXTERN	hijack_Receive_DataL	:BYTE
+				;35	EXTERN	hijack_Send_Data 		:BYTE
+				;36	EXTERN	IIC_Receive_Data 		:BYTE
+				;37	EXTERN	IIC_Send_Data 			:BYTE
+				;38	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;39	;@------------------------Library API------------------------------@
+				;40	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;41	public	F_EMI
+				;42	public	R_ATEMP
+				;43	public  R_STATUS
+				;44	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;45	;@-----------------------------DATA--------------------------------@
+				;46	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+				;47	ds	.section	'data'    
+				;48	F_EMI					DBIT
+				;49	R_ATEMP					DB	?
+				;50	R_STATUS				DB	?
+				;51	
+				;52	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;53	;@-----------------------------CODE--------------------------------@
+				;54	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;55	cs	.section	at  000h	'code'
+				;56	        ORG     START_VECTOR
+				;57	        SNZ     TO
+				CS:
+				include HT68F002.inc
+0000	3A8A	snz     TO
+				;58	        JMP     POWER_ON
+0001	2819	jmp     POWER_ON
+				;59	        JMP     MAIN
+0002	2824	jmp     MAIN
+0003	0000	nop
+				;60	;ISR VECTOR Defination
+				;61	        ORG     INT0_VECTOR
+				;62	        JMP		_IIC_INT_ISR		;IIC從機子程序
+0004	284A	jmp     _IIC_INT_ISR
+				;63	        RETI
+0005	0004	reti
+0006	0000	nop
+0007	0000	nop
+				;64	;
+				;65	        ORG		Timebase0_VECTOR 
+				;66	        RETI
+0008	0004	reti
+0009	0000	nop
+000A	0000	nop
+000B	0000	nop
+				;67	;
+				;68			ORG		Timebase1_VECTOR
+				;69			RETI
+000C	0004	reti
+000D	0000	nop
+000E	0000	nop
+000F	0000	nop
+				;70	;
+				;71			ORG		M_FUNCTION0_VECTOR
+				;72			JMP		_hijack_Receive
+0010	28D9	jmp     _hijack_Receive
+				;73			RETI
+0011	0004	reti
+0012	0000	nop
+0013	0000	nop
+				;74	;
+				;75			ORG		EEPROM_VECTOR
+				;76			RETI
+0014	0004	reti
+0015	0000	nop
+0016	0000	nop
+0017	0000	nop
+				;77	;
+				;78			ORG		ADC_VECTOR
+				;79			RETI
+0018	0004	reti
+				;80	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;81						;---------Power ON-------------;
+				;82	POWER_ON:
+				;83			CALL	_CLEAR_RAM
+				POWER_ON:
+0019	202B	call    _CLEAR_RAM
+				;84			CALL	_INIT_PORT
+001A	2033	call    _INIT_PORT
+				;85			CALL	_INIT_WDT
+001B	2041	call    _INIT_WDT
+				;86			CALL	_INIT_SysFrequency
+001C	2044	call    _INIT_SysFrequency
+				;87			CALL	_INIT_LVD
+001D	2047	call    _INIT_LVD
+				;88			CALL	_IIC_init
+001E	20B7	call    _IIC_init
+				;89			CALL	_hijack_init
+001F	21E7	call    _hijack_init
+				;90			MOV		A,000H
+0020	0F00	mov     a, 0H
+				;91			MOV		IIC_Send_Data,A
+0021	00C5	mov     IIC_SEND_DATA, a
+				;92			CLR		PAC3
+0022	3595	clr     PAC3
+				;93			SET		PA3
+0023	3194	set     PA3
+				;94	MAIN:
+				;95	
+				;96			CLR		WDT
+				MAIN:
+0024	0001	clr     wdt
+				;97			CLR		WDT1
+0025	0001	clr     wdt
+				;98			CLR		WDT2
+0026	0005	clr     wdt2
+				;99			NOP
+0027	0000	nop
+				;100			CLR		EMI
+0028	340E	clr     EMI
+				;101			CALL	_hijack_Send
+0029	20C1	call    _hijack_Send
+				;102		
+				;103			JMP		MAIN
+002A	2824	jmp     MAIN
+				;104	
+				;105	
+				;file E:\Doing\0 音頻口通信\ASSP MCU\hijiack\source code\sysyinit.asm
+				;1	;___________________________________________________________________
+				;2	;___________________________________________________________________
+				;3	;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+				;4	;File Name :    sysinit.asm
+				;5	;Targer :       hijack TEST Board
+				;6	;MCU :          HT68F002
+				;7	;Version :      V00
+				;8	;Author :       ChenTing
+				;9	;Date :         2015/04/10
+				;10	;Description :  音頻通信程序測試
+				;11	;				系統初始化程序
+				;12	;History : 
+				;13	;___________________________________________________________________
+				;14	;___________________________________________________________________
+				;15	include config.inc
+				;16	include target.inc
+				;17	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;18	;@---------------------Library API------------------------------@
+				;19	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+				;20	Public 	_CLEAR_RAM
+				;21	Public 	_INIT_PORT
+				;22	Public	_INIT_WDT
+				;23	public  _INIT_SysFrequency
+				;24	public  _INIT_LVD
+				;25	
+				;26	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;27	
+				;28							;-----------Clear RAM----------;
+				;29	;@SUBROUTINE
+				;30	;HT66F4540 , bank0:40h-FFh  )
+				;31	_CLEAR_RAM PROC
+				;32	        mov     A,040H          
+				_CLEAR_RAM:
+002B	0F40	mov     a, 40H
+				;33	        mov     MP0,A           
+002C	0081	mov     MP0, a
+				;34	        mov     A,64d          
+002D	0F40	mov     a, 40H
+				;35	CLEAR_RAM_LOOP:                    
+				;36	        clr     IAR0            
+				CLEAR_RAM_LOOP:
+002E	1F00	clr     [00H]
+				;37	        inc     MP0             
+002F	1481	inc     MP0
+				;38	        SDZ     ACC             
+0030	1785	sdz     ACC
+				;39	        JMP     CLEAR_RAM_LOOP     
+0031	282E	jmp     CLEAR_RAM_LOOP
+				;40	        RET
+0032	0003	ret
+				;41	_CLEAR_RAM ENDP
+				;42	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;43							;----------Initial Port----------;
+				;44	;SUBROUTINE
+				;45	_INIT_PORT PROC
+				;46	        MOV     A,00H
+				_INIT_PORT:
+0033	0F00	mov     a, 0H
+				;47	        MOV     PA,A        
+0034	0094	mov     PA, a
+				;48	        MOV     A,00H
+0035	0F00	mov     a, 0H
+				;49	        MOV     PAC,A      
+0036	0095	mov     PAC, a
+				;50	        MOV		A,00H
+0037	0F00	mov     a, 0H
+				;51	        MOV		PAPU,A       
+0038	0096	mov     PAPU, a
+				;52	        MOV		A,00H
+0039	0F00	mov     a, 0H
+				;53	        MOV		PAWU,A
+003A	0097	mov     PAWU, a
+				;54	
+				;55			MOV		A,00H
+003B	0F00	mov     a, 0H
+				;56			MOV		PASR,A
+003C	00A6	mov     PASR, a
+				;57	
+				;58			SET		PAC6		
+003D	3315	set     PAC6
+				;59			SET		PAC1
+003E	3095	set     PAC1
+				;60			SET		PAWU1	        	
+003F	3097	set     PAWU1
+				;61	        RET
+0040	0003	ret
+				;62	_INIT_PORT ENDP
+				;63	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;64							;----------Initial WDTC----------;
+				;65	;SUBROUTINE
+				;66	_INIT_WDT PROC
+				;67		    MOV		A,WDT_Function_Default
+				_INIT_WDT:
+0041	0F53	mov     a, 53H
+				;68		    MOV		WDTC,A    	
+0042	0099	mov     WDTC, a
+				;69	        RET
+0043	0003	ret
+				;70	_INIT_WDT ENDP
+				;71	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@       
+				;72							;----------Initial SysFrequency----------;
+				;73	;SUBROUTINE
+				;74	_INIT_SysFrequency PROC
+				;75		    MOV		A,SYSFrequency_Default
+				_INIT_SysFrequency:
+0044	0FE0	mov     a, E0H
+				;76		    MOV		SMOD,A    	
+0045	008B	mov     SMOD, a
+				;77	        RET
+0046	0003	ret
+				;78	_INIT_SysFrequency ENDP
+				;79	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  
+				;80							;----------Initial LVD----------;
+				;81	;SUBROUTINE
+				;82	_INIT_LVD PROC
+				;83		    MOV		A,LVD_Voltage_Default
+				_INIT_LVD:
+0047	0F11	mov     a, 11H
+				;84		    MOV		LVDC,A    	
+0048	008C	mov     LVDC, a
+				;85	        RET
+0049	0003	ret
+				;86	_INIT_LVD ENDP
+				;87	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  
+				;88							;----------Initial EMI----------;
+				;89	;SUBROUTINE
+				;90	;_INIT_LVD PROC
+				;91	;	    MOV		A,LVD_Voltage_Default
+				;92	;	    MOV		LVDC,A    	
+				;93	;        RET
+				;94	;_INIT_LVD ENDP
+				;95	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+				;file E:\Doing\0 音頻口通信\ASSP MCU\hijiack\source code\IIC_Slave.asm
+				;1	;___________________________________________________________________
+				;2	;___________________________________________________________________
+				;3	;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+				;4	;File Name :    sysinit.asm
+				;5	;Targer :       hijack TEST Board
+				;6	;MCU :          HT68F002
+				;7	;Version :      V00
+				;8	;Author :       ChenTing
+				;9	;Date :         2015/04/10
+				;10	;Description :  音頻通信程序測試
+				;11	;				IIC_Slave程序
+				;12	;History : 
+				;13	;___________________________________________________________________
+				;14	;___________________________________________________________________
+				;15	include config.inc
+				;16	include target.inc
+				;17	
+				;18	#define IIC_Device_Addr_Default 028H
+				;19	#define IIC_Time_Out_Count		200
+				;20	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;21	;@---------------------Library API------------------------------@
+				;22	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+				;23	EXTERN	R_STATUS 			:BYTE
+				;24	EXTERN	R_ATEMP 			:BYTE
+				;25	
+				;26	Public 	_IIC_INT_ISR
+				;27	public  IIC_Receive_Data
+				;28	public	IIC_Send_Data
+				;29	public  _IIC_init
+				;30	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;31	;@------------------------------DATA----------------------------@
+				;32	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;33	rambank 0  IIC_Slave_datal
+				;34	IIC_Slave_datal	.section	'data'   
+				;35	
+				;36	IIC_Device_Addr			DB	?
+				;37	IIC_Receive_Data		DB	?
+				;38	IIC_Send_Data			DB	?
+				;39	IIC_temp_conunt1		DB	?
+				;40	IIC_temp_conunt2		DB	?
+				;41	IIC_temp_BYTE			DB	?
+				;42	IIC_temp_Flag			DBIT
+				;43	
+				;44	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;45	;@-------------------------------CODE---------------------------@
+				;46	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;47	IIC_Slave_code	.section	'code' 
+				;48	
+				;49	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;50	 _IIC_INT_ISR PROC
+				;51	 		PUSH
+				_IIC_INT_ISR:
+				IIC_SLAVE_CODE:
+004A	00C1	mov     R_ATEMP, a
+004B	070A	mov     a, STATUS
+004C	00C2	mov     R_STATUS, a
+				;52	 		CLR		INTE
+004D	348E	clr     INTE
+				;53	;判斷是否為有效start信號
+				;54			SNZ		IIC_SCL		
+004E	3A14	snz     PA4
+				;55			JMP		_IIC_RET				;SDA下降沿的時候，SCL為low，不是IIC start信號
+004F	2867	jmp     _IIC_RET
+				;56	;讀取Device address
+				;57			CALL	_IIC_Read_BYTEData		;讀取IIC 主機發送過來的設備地址
+0050	206D	call    _IIC_Read_BYTEData
+				;58	Device_Addr_Judge:	;判斷地址是否匹配
+				;59			MOV		A,IIC_temp_BYTE
+				Device_Addr_Judge:
+0051	0748	mov     a, IIC_TEMP_BYTE
+				;60			MOV		IIC_Device_Addr,A
+0052	00C3	mov     IIC_DEVICE_ADDR, a
+				;61			MOV		A,0feH					;取出地址數據		
+0053	0FFE	mov     a, FEH
+				;62			AND		A,IIC_Device_Addr
+0054	0643	and     a, IIC_DEVICE_ADDR
+				;63			XOR		A,IIC_Device_Addr_Default
+0055	0C28	xor     a, 28H
+				;64			SNZ		Z
+0056	390A	snz     Z
+				;65			JMP		_IIC_RET				;地址不匹配，則退出
+0057	2867	jmp     _IIC_RET
+				;66	;地址匹配，發送ACK給主機
+				;67			CALL	IIC_Ack					;收到設備地址，對設備地址ACK應答		
+0058	20A5	call    IIC_Ack
+				;68	;地址匹配，判斷主機需要讀取數據還是寫入數據
+				;69			MOV		A,01H					;取出地址數據		
+0059	0F01	mov     a, 1H
+				;70			AND		A,IIC_Device_Addr
+005A	0643	and     a, IIC_DEVICE_ADDR
+				;71			SZ		ACC
+005B	1085	sz      ACC
+				;72			JMP		IIC_Master_Read			;主機需要讀取數據
+005C	285E	jmp     IIC_Master_Read
+				;73			JMP		IIC_Master_Write		;主機需要寫入數據
+005D	2863	jmp     IIC_Master_Write
+				;74	IIC_Master_Read:
+				;75			MOV		A,IIC_Send_Data
+				IIC_Master_Read:
+005E	0745	mov     a, IIC_SEND_DATA
+				;76			MOV		IIC_temp_BYTE,A
+005F	00C8	mov     IIC_TEMP_BYTE, a
+				;77			CALL	_IIC_Write_BYTEData
+0060	2089	call    _IIC_Write_BYTEData
+				;78	;TEST START
+				;79	TEST:;20150423
+				;80			INC		IIC_Send_Data
+				TEST:
+0061	14C5	inc     IIC_SEND_DATA
+				;81	;TEST END
+				;82	;目前就完成單個字節的讀寫操作
+				;83			JMP		_IIC_RET
+0062	2867	jmp     _IIC_RET
+				;84	IIC_Master_Write:		
+				;85			CALL	_IIC_Read_BYTEData
+				IIC_Master_Write:
+0063	206D	call    _IIC_Read_BYTEData
+				;86			MOV		A,IIC_temp_BYTE
+0064	0748	mov     a, IIC_TEMP_BYTE
+				;87			MOV		IIC_Receive_Data,A
+0065	00C4	mov     IIC_RECEIVE_DATA, a
+				;88	;;目前就完成單個字節的讀寫操作
+				;89			JMP		_IIC_RET
+0066	2867	jmp     _IIC_RET
+				;90	_IIC_RET:
+				;91			SET		INTE
+				_IIC_RET:
+0067	308E	set     INTE
+				;92			CLR		INTF
+0068	360E	clr     INTF
+				;93	;		SET		EMI
+				;94			POP
+0069	0742	mov     a, R_STATUS
+006A	008A	mov     STATUS, a
+006B	0741	mov     a, R_ATEMP
+				;95			RETI
+006C	0004	reti
+				;96	_IIC_INT_ISR ENDP
+				;97	
+				;98	
+				;99	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+				;100	_IIC_Read_BYTEData PROC
+				;101			SET		IIC_SDA_IO
+				_IIC_Read_BYTEData:
+006D	3295	set     PAC5
+				;102			MOV 	A,9 				;SET 8 BIT COUNTER
+006E	0F09	mov     a, 9H
+				;103			MOV 	IIC_temp_conunt1,A	
+006F	00C6	mov     IIC_TEMP_CONUNT1, a
+				;104			CLR		IIC_temp_BYTE
+0070	1F48	clr     IIC_TEMP_BYTE
+				;105	IIC_Read_LOOP:	
+				;106			SDZ 	IIC_temp_conunt1 	;8bit值是否已經讀取完成
+				IIC_Read_LOOP:
+0071	17C6	sdz     IIC_TEMP_CONUNT1
+				;107			JMP		IIC_Read_BYTEData_LOOP
+0072	2874	jmp     IIC_Read_BYTEData_LOOP
+				;108			RET
+0073	0003	ret
+				;109	IIC_Read_BYTEData_LOOP:	
+				;110			RL	 	IIC_temp_BYTE		;高位在前
+				IIC_Read_BYTEData_LOOP:
+0074	18C8	rl      IIC_TEMP_BYTE
+				;111			MOV		A,IIC_Time_Out_Count;config time out value
+0075	0FC8	mov     a, C8H
+				;112			MOV		IIC_temp_conunt2,A		
+0076	00C7	mov     IIC_TEMP_CONUNT2, a
+				;113	$1:						
+				;114			SZ		IIC_SCL				;SCL低電平狀態就等待
+				L0077:
+0077	3E14	sz      PA4
+				;115			JMP		$2
+0078	287C	jmp     L007C
+				;116			SDZ		IIC_temp_conunt2
+0079	17C7	sdz     IIC_TEMP_CONUNT2
+				;117			JMP		$1
+007A	2877	jmp     L0077
+				;118			RET
+007B	0003	ret
+				;119	$2:					
+				;120			SNZ		IIC_SDA				;讀取到來的data值
+				L007C:
+007C	3A94	snz     PA5
+				;121			JMP		SDA_LOW0
+007D	2881	jmp     SDA_LOW0
+				;122			JMP		SDA_HIGH0
+007E	287F	jmp     SDA_HIGH0
+				;123	SDA_HIGH0:
+				;124			SET		IIC_temp_BYTE.0
+				SDA_HIGH0:
+007F	3048	set     IIC_TEMP_BYTE.0
+				;125			JMP		IIC_Read_Next					
+0080	2882	jmp     IIC_Read_Next
+				;126	SDA_LOW0:
+				;127			CLR		IIC_temp_BYTE.0
+				SDA_LOW0:
+0081	3448	clr     IIC_TEMP_BYTE.0
+				;128	IIC_Read_Next:		
+				;129			MOV		A,IIC_Time_Out_Count
+				IIC_Read_Next:
+0082	0FC8	mov     a, C8H
+				;130			MOV		IIC_temp_conunt2,A
+0083	00C7	mov     IIC_TEMP_CONUNT2, a
+				;131	$1:					
+				;132			SNZ		IIC_SCL				;SCL高電平就等待
+				L0084:
+0084	3A14	snz     PA4
+				;133			JMP		IIC_Read_LOOP
+0085	2871	jmp     IIC_Read_LOOP
+				;134			SDZ		IIC_temp_conunt2
+0086	17C7	sdz     IIC_TEMP_CONUNT2
+				;135			JMP		$1		
+0087	2884	jmp     L0084
+				;136			RET	
+0088	0003	ret
+				;137	_IIC_Read_BYTEData ENDP
+				;138	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;139	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+				;140	_IIC_Write_BYTEData PROC
+				;141			CLR		IIC_SDA_IO
+				_IIC_Write_BYTEData:
+0089	3695	clr     PAC5
+				;142			MOV 	A,8 ;SET 8 BIT COUNTER
+008A	0F08	mov     a, 8H
+				;143			MOV 	IIC_temp_conunt1,A
+008B	00C6	mov     IIC_TEMP_CONUNT1, a
+				;144			MOV		A,IIC_Time_Out_Count
+008C	0FC8	mov     a, C8H
+				;145			MOV		IIC_temp_conunt2,A						
+008D	00C7	mov     IIC_TEMP_CONUNT2, a
+				;146	IIC_Write_BYTEData_LOOP:
+				;147			SZ		IIC_SCL				;SCL低電平狀態就等待
+				IIC_Write_BYTEData_LOOP:
+008E	3E14	sz      PA4
+				;148			JMP		$2
+008F	2893	jmp     L0093
+				;149			SDZ		IIC_temp_conunt2
+0090	17C7	sdz     IIC_TEMP_CONUNT2
+				;150			JMP		IIC_Write_BYTEData_LOOP
+0091	288E	jmp     IIC_Write_BYTEData_LOOP
+				;151			RET
+0092	0003	ret
+				;152	$2:			
+				;153	;		MOV		A,80H				;取出地址數據		
+				;154	;		AND		A,IIC_temp_BYTE
+				;155	;		SZ		ACC
+				;156			SZ		IIC_temp_BYTE.7
+				L0093:
+0093	3FC8	sz      IIC_TEMP_BYTE.7
+				;157			JMP		SDA_HIGH1
+0094	2896	jmp     SDA_HIGH1
+				;158			JMP		SDA_LOW1
+0095	2898	jmp     SDA_LOW1
+				;159	SDA_HIGH1:
+				;160			SET		IIC_SDA
+				SDA_HIGH1:
+0096	3294	set     PA5
+				;161			JMP		Write_Next_Bit
+0097	2899	jmp     Write_Next_Bit
+				;162	SDA_LOW1:
+				;163			CLR		IIC_SDA
+				SDA_LOW1:
+0098	3694	clr     PA5
+				;164	Write_Next_Bit:
+				;165			MOV		A,IIC_Time_Out_Count
+				Write_Next_Bit:
+0099	0FC8	mov     a, C8H
+				;166			MOV		IIC_temp_conunt2,A	
+009A	00C7	mov     IIC_TEMP_CONUNT2, a
+				;167	$2:					
+				;168			SNZ		IIC_SCL				;SCL高電平就等待
+				L009B:
+009B	3A14	snz     PA4
+				;169			JMP		$1
+009C	28A0	jmp     L00A0
+				;170			SDZ		IIC_temp_conunt2
+009D	17C7	sdz     IIC_TEMP_CONUNT2
+				;171			JMP		$2
+009E	289B	jmp     L009B
+				;172			RET		
+009F	0003	ret
+				;173	$1:		
+				;174	;		SET		IIC_SDA_IO				;讓出數據線
+				;175			RL		IIC_temp_BYTE
+				L00A0:
+00A0	18C8	rl      IIC_TEMP_BYTE
+				;176			SDZ 	IIC_temp_conunt1 	;8bit值是否已經讀取完成
+00A1	17C6	sdz     IIC_TEMP_CONUNT1
+				;177			JMP		IIC_Write_BYTEData_LOOP
+00A2	288E	jmp     IIC_Write_BYTEData_LOOP
+				;178			SET		IIC_SDA_IO				;讓出數據線
+00A3	3295	set     PAC5
+				;179			RET	
+00A4	0003	ret
+				;180	_IIC_Write_BYTEData ENDP
+				;181	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;182	IIC_Ack PROC
+				;183	;應答信號，保證在兩個時鐘條邊沿SDA為低，則主機認為是從機應答
+				;184			CLR		IIC_SDA_IO			;config SDA output
+				IIC_Ack:
+00A5	3695	clr     PAC5
+				;185			MOV		A,IIC_Time_Out_Count
+00A6	0FC8	mov     a, C8H
+				;186			MOV		IIC_temp_conunt2,A
+00A7	00C7	mov     IIC_TEMP_CONUNT2, a
+				;187	$1:
+				;188			SZ		IIC_SCL				;低電平就等待
+				L00A8:
+00A8	3E14	sz      PA4
+				;189			JMP		$2
+00A9	28AD	jmp     L00AD
+				;190			SDZ		IIC_temp_conunt2
+00AA	17C7	sdz     IIC_TEMP_CONUNT2
+				;191			JMP		$1
+00AB	28A8	jmp     L00A8
+				;192			RET
+00AC	0003	ret
+				;193	$2:			
+				;194			CLR		IIC_SDA		;第9個CLK變高的情況下，SDA輸出0
+				L00AD:
+00AD	3694	clr     PA5
+				;195			MOV		A,IIC_Time_Out_Count
+00AE	0FC8	mov     a, C8H
+				;196			MOV		IIC_temp_conunt2,A
+00AF	00C7	mov     IIC_TEMP_CONUNT2, a
+				;197	$3:				
+				;198			SNZ		IIC_SCL
+				L00B0:
+00B0	3A14	snz     PA4
+				;199			JMP		$4
+00B1	28B5	jmp     L00B5
+				;200			SDZ		IIC_temp_conunt2
+00B2	17C7	sdz     IIC_TEMP_CONUNT2
+				;201			JMP		$3
+00B3	28B0	jmp     L00B0
+				;202			RET
+00B4	0003	ret
+				;203	$4:				
+				;204			SET		IIC_SDA_IO		;第9個CLK變低的情況下，釋放總線
+				L00B5:
+00B5	3295	set     PAC5
+				;205			RET
+00B6	0003	ret
+				;206	IIC_Ack ENDP
+				;207	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;208	_IIC_init PROC
+				;209			CLR		IIC_SDA
+				_IIC_init:
+00B7	3694	clr     PA5
+				;210			SET		IIC_SDA_IO		;輸出話IO口設定
+00B8	3295	set     PAC5
+				;211			SET		IIC_SCL_IO	
+00B9	3215	set     PAC4
+				;212			CLR		IIC_SCL
+00BA	3614	clr     PA4
+				;213			
+				;214	
+				;215			MOV		A,INT0_Default	;config INT觸發中斷
+00BB	0F03	mov     a, 3H
+				;216			MOV		INTEG,A
+00BC	008D	mov     INTEG, a
+				;217			CLR		INTF
+00BD	360E	clr     INTF
+				;218			SET		INTE
+00BE	308E	set     INTE
+				;219			SET		EMI				;使能INT
+00BF	300E	set     EMI
+				;220					
+				;221			RET
+00C0	0003	ret
+				;222	_IIC_init ENDP
+				;223	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;224	
+				;file E:\Doing\0 音頻口通信\ASSP MCU\hijiack\source code\hijack.asm
+				;1	;___________________________________________________________________
+				;2	;___________________________________________________________________
+				;3	;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+				;4	;File Name :    hijack.asm
+				;5	;Targer :       hijack TEST Board
+				;6	;MCU :          HT68F002
+				;7	;Version :      V00
+				;8	;Author :       ChenTing
+				;9	;Date :         2015/04/10
+				;10	;Description :  音頻通信程序測試
+				;11	;				音頻通信主要程序
+				;12	;History : 
+				;13	;___________________________________________________________________
+				;14	;___________________________________________________________________
+				;15	include config.inc
+				;16	include target.inc
+				;17	include hijack.inc
+				;18	;#define IIC_Device_Addr_Default 0A0H
+				;19	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;20	;@---------------------Library API------------------------------@
+				;21	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;22	EXTERN	F_EMI 		:BIT
+				;23	EXTERN	R_STATUS 			:BYTE
+				;24	EXTERN	R_ATEMP 			:BYTE
+				;25	 
+				;26	public  _hijack_init
+				;27	Public 	_hijack_Receive
+				;28	public  _hijack_Send
+				;29	
+				;30	public	hijack_Send_Data
+				;31	public	hijack_Receive_DataH
+				;32	public	hijack_Receive_DataL
+				;33	
+				;34	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;35	;@------------------------------DATA----------------------------@
+				;36	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;37	rambank 0  hijack_datal
+				;38	hijack_datal	.section	'data'   
+				;39	
+				;40	hijack_Receive_DataH		DB	?
+				;41	hijack_Receive_DataL		DB	?
+				;42	hijack_Send_Data			DB	?
+				;43	hijack_temp_Byte			DB	?
+				;44	hijack_temp_count1			DB	?
+				;45	hijack_temp_count2			DB	?
+				;46	hijack_CCRP_count			DB	?
+				;47	hijack_Rx_step				DB	?
+				;48	high_CCRA1_H				DB	?
+				;49	high_CCRA1_L				DB	?
+				;50	high_CCRA2_H				DB	?
+				;51	high_CCRA2_L				DB	?
+				;52	hijack_Period_H				DB	?
+				;53	hijack_Period_L				DB	?
+				;54	TEST_COUNT					DB	?
+				;55	TEST_COUNT2					DB	?
+				;56	TEST_COUNT3					DB	?
+				;57	hijack_Idle_Count			DB	?
+				;58	hijack_Rx_Count				DB	?
+				;59	hijack_Rx_Parity_Count		DB	?
+				;60	
+				;61	F_First_CCRA				DBIT
+				;62	F_hijack_Rx_Error			DBIT
+				;63	F_hijack_Rx_Start			DBIT
+				;64	F_CompleteRx1Bit			DBIT
+				;65	F_0or1Bit					DBIT
+				;66	F_PrepareMode				DBIT
+				;67	F_IdleMode					DBIT
+				;68	F_ByteMode					DBIT
+				;69	F_hijackstartOk				DBIT
+				;70	F_Parity_StopMode			DBIT
+				;71	F_Parity_Ok					DBIT
+				;72	F_Stop_idleMode				DBIT
+				;73	F_First_Parity_StopMode		DBIT
+				;74	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;75	;@-------------------------------CODE---------------------------@
+				;76	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;77	hijack_code	.section	'code' 
+				;78	
+				;79	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;80	_hijack_Send PROC
+				;81			CLR		IIC_SCL_IO;
+				_hijack_Send:
+				HIJACK_CODE:
+00C1	3615	clr     PAC4
+				;82			CLR		IIC_SCL		;hijack發送數據的時候拉低SCL，不接收IICdata
+00C2	3614	clr     PA4
+				;83			SNZ		EMI
+00C3	380E	snz     EMI
+				;84			JMP		$1
+00C4	28C7	jmp     L00C7
+				;85			SET		F_EMI
+00C5	3040	set     [040H].0
+				;86			JMP		$2			
+00C6	28C9	jmp     L00C9
+				;87	$1:		
+				;88			CLR		F_EMI		
+				L00C7:
+00C7	3440	clr     [040H].0
+				;89			JMP		$2
+00C8	28C9	jmp     L00C9
+				;90	$2:		
+				;91			CLR		EMI		;關閉總中斷，防止其他程序打斷
+				L00C9:
+00C9	340E	clr     EMI
+				;92			CLR		hijack_channel_MIC_IO 
+00CA	3515	clr     PAC2
+				;93			SET		hijack_channel_MIC
+00CB	3114	set     PA2
+				;94	;建立Bias信號 12bit 0
+				;95			CALL	_hijack_Send_Bias		
+00CC	222F	call    _hijack_Send_Bias
+				;96	;idel信號     3bit  1
+				;97			CALL	_hijack_Send_Idle
+00CD	223E	call    _hijack_Send_Idle
+				;98	;start信號	  1bit  0
+				;99			CALL	_hijack_Send_Start				
+00CE	224D	call    _hijack_Send_Start
+				;100	;發送1Byte data + 奇校驗
+				;101			MOV		A,0A5H
+00CF	0FA5	mov     a, A5H
+				;102			MOV		hijack_temp_Byte,A		
+00D0	00CD	mov     HIJACK_TEMP_BYTE, a
+				;103			CALL	_hijack_Send_Byte		
+00D1	21F7	call    _hijack_Send_Byte
+				;104	;stop信號	  1bit 1
+				;105			CALL	_hijack_Send_Stop
+00D2	2258	call    _hijack_Send_Stop
+				;106	;3bit結束信號
+				;107			CALL	_hijack_Send_Idle
+00D3	223E	call    _hijack_Send_Idle
+				;108	
+				;109			SNZ		F_EMI
+00D4	3840	snz     [040H].0
+				;110			JMP		_hijack_Send_RET
+00D5	28D7	jmp     _hijack_Send_RET
+				;111			SET		EMI			;開啟EMI，
+00D6	300E	set     EMI
+				;112	_hijack_Send_RET:
+				;113			CLR		F_EMI
+				_hijack_Send_RET:
+00D7	3440	clr     [040H].0
+				;114			RET 
+00D8	0003	ret
+				;115	_hijack_Send ENDP
+				;116	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;117	;						_hijack_Receive	Start							@
+				;118	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;119	_hijack_Receive PROC
+				;120			PUSH
+				_hijack_Receive:
+00D9	00C1	mov     R_ATEMP, a
+00DA	070A	mov     a, STATUS
+00DB	00C2	mov     R_STATUS, a
+				;121			SNZ		F_hijack_Rx_Start
+00DC	395E	snz     HIJACK_RX_PARITY_COUNT[1].2
+				;122			JMP		hijack_Normal_Mode
+00DD	28F1	jmp     hijack_Normal_Mode
+				;123	hijack_Rx_Mode:		
+				;124			CALL	_hijack_Rx_1Bit		
+				hijack_Rx_Mode:
+00DE	2179	call    _hijack_Rx_1Bit
+				;125			CALL	_hijack_PrepareMode	
+00DF	2127	call    _hijack_PrepareMode
+				;126			CALL	_hijack_StartIdleMode		
+00E0	2131	call    _hijack_StartIdleMode
+				;127			CALL	_hijack_Rx_Byte				
+00E1	2155	call    _hijack_Rx_Byte
+				;128			CALL	_hijack_Parity_StopMode
+00E2	210A	call    _hijack_Parity_StopMode
+				;129			CALL	_hijack_ENDIdleMode
+00E3	2143	call    _hijack_ENDIdleMode
+				;130			
+				;131			SNZ		F_hijack_Rx_Error
+00E4	38DE	snz     HIJACK_RX_PARITY_COUNT[1].1
+				;132			JMP		_hijack_Receive_RET
+00E5	2906	jmp     _hijack_Receive_RET
+				;133			CLR		F_First_CCRA
+00E6	345E	clr     HIJACK_RX_PARITY_COUNT[1].0
+				;134			CLR		F_hijack_Rx_Error
+00E7	34DE	clr     HIJACK_RX_PARITY_COUNT[1].1
+				;135			CLR		TEST_COUNT
+00E8	1F58	clr     TEST_COUNT
+				;136			CLR		TEST_COUNT2
+00E9	1F59	clr     TEST_COUNT2
+				;137			CLR		F_ByteMode
+00EA	37DE	clr     HIJACK_RX_PARITY_COUNT[1].7
+				;138			CLR		F_CompleteRx1Bit
+00EB	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;139			CLR		F_IdleMode
+00EC	375E	clr     HIJACK_RX_PARITY_COUNT[1].6
+				;140			CLR		F_PrepareMode
+00ED	36DE	clr     HIJACK_RX_PARITY_COUNT[1].5
+				;141			CLR		F_hijack_Rx_Start
+00EE	355E	clr     HIJACK_RX_PARITY_COUNT[1].2
+				;142			CLR		F_hijackstartOk
+00EF	345F	clr     HIJACK_RX_PARITY_COUNT[2].0
+				;143			JMP		_hijack_Receive_RET
+00F0	2906	jmp     _hijack_Receive_RET
+				;144	
+				;145	
+				;146			
+				;147	hijack_Normal_Mode:	
+				;148			SNZ		STMA0F
+				hijack_Normal_Mode:
+00F1	3A91	snz     STMA0F
+				;149			JMP		_hijack_Normal_CCRP_RET	;(not hijack Rx mode)& (not CCRA interrupt) = normal CCRP interrupt
+00F2	2903	jmp     _hijack_Normal_CCRP_RET
+				;150	;;第一次進入CCRA中斷，初始化相關設置	init hijack Rx Value
+				;151			MOV		A,00001000B
+00F3	0F08	mov     a, 8H
+				;152			XORM	A,PA
+00F4	0494	xorm    a, PA
+				;153			CLR		STMA0F		
+00F5	3691	clr     STMA0F
+				;154			SET		F_First_CCRA
+00F6	305E	set     HIJACK_RX_PARITY_COUNT[1].0
+				;155			CLR		hijack_CCRP_count	
+00F7	1F50	clr     HIJACK_CCRP_COUNT
+				;156			MOV		A,STM0AH					;Save CCRA value
+00F8	072D	mov     a, STM0AH
+				;157			MOV		high_CCRA1_H,A	;
+00F9	00D2	mov     HIGH_CCRA1_H, a
+				;158			MOV		A,STM0AL					;
+00FA	072C	mov     a, STM0AL
+				;159			MOV		high_CCRA1_L,A	;
+00FB	00D3	mov     HIGH_CCRA1_L, a
+				;160			INC		TEST_COUNT3
+00FC	14DA	inc     TEST_COUNT3
+				;161			SET		F_hijack_Rx_Start
+00FD	315E	set     HIJACK_RX_PARITY_COUNT[1].2
+				;162			SET		F_PrepareMode
+00FE	32DE	set     HIJACK_RX_PARITY_COUNT[1].5
+				;163			MOV		A,3
+00FF	0F03	mov     a, 3H
+				;164			MOV		hijack_Idle_Count,A
+0100	00DB	mov     HIJACK_IDLE_COUNT, a
+				;165			CLR		F_hijack_Rx_Error				
+0101	34DE	clr     HIJACK_RX_PARITY_COUNT[1].1
+				;166			JMP		_hijack_Receive_RET			
+0102	2906	jmp     _hijack_Receive_RET
+				;167	_hijack_Normal_CCRP_RET:
+				;168			SNZ		STMP0F					;CCRP_interrupt也不是 CCRP_interrupt中斷，錯誤
+				_hijack_Normal_CCRP_RET:
+0103	3A11	snz     STMP0F
+				;169			SET		F_hijack_Rx_Error
+0104	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;170			CLR		STMP0F		
+0105	3611	clr     STMP0F
+				;171	_hijack_Receive_RET:
+				;172			
+				;173			POP		
+				_hijack_Receive_RET:
+0106	0742	mov     a, R_STATUS
+0107	008A	mov     STATUS, a
+0108	0741	mov     a, R_ATEMP
+				;174			RETI 
+0109	0004	reti
+				;175	_hijack_Receive ENDP
+				;176	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;177	;					_hijack_Receive	End		    						@
+				;178	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;179	_hijack_Parity_StopMode PROC
+				;180			SNZ		F_Parity_StopMode
+				_hijack_Parity_StopMode:
+010A	38DF	snz     HIJACK_RX_PARITY_COUNT[2].1
+				;181			RET
+010B	0003	ret
+				;182			SNZ		F_CompleteRx1Bit
+010C	39DE	snz     HIJACK_RX_PARITY_COUNT[1].3
+				;183			RET
+010D	0003	ret
+				;184			CLR		F_CompleteRx1Bit
+010E	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;185			
+				;186			SZ		F_Parity_Ok
+010F	3D5F	sz      HIJACK_RX_PARITY_COUNT[2].2
+				;187			JMP		Stop_Deal					
+0110	291C	jmp     Stop_Deal
+				;188			SNZ		hijack_Rx_Parity_Count.0
+0111	385D	snz     HIJACK_RX_PARITY_COUNT.0
+				;189			JMP		Paritylow
+0112	2918	jmp     ParityLow
+				;190			JMP		ParityHigh
+0113	2914	jmp     ParityHigh
+				;191	ParityHigh:	
+				;192			SNZ		F_0or1Bit
+				ParityHigh:
+0114	3A5E	snz     HIJACK_RX_PARITY_COUNT[1].4
+				;193			JMP		_hijack_Parity_StopMode_Error
+0115	2924	jmp     _hijack_Parity_StopMode_Error
+				;194			SET		F_Parity_Ok
+0116	315F	set     HIJACK_RX_PARITY_COUNT[2].2
+				;195			JMP		_hijack_Parity_StopMode_RET					
+0117	2926	jmp     _hijack_Parity_StopMode_RET
+				;196	ParityLow:		
+				;197			SZ		F_0or1Bit
+				ParityLow:
+0118	3E5E	sz      HIJACK_RX_PARITY_COUNT[1].4
+				;198			JMP		_hijack_Parity_StopMode_Error
+0119	2924	jmp     _hijack_Parity_StopMode_Error
+				;199			SET		F_Parity_Ok
+011A	315F	set     HIJACK_RX_PARITY_COUNT[2].2
+				;200			JMP		_hijack_Parity_StopMode_RET			
+011B	2926	jmp     _hijack_Parity_StopMode_RET
+				;201	Stop_Deal:
+				;202			CLR		F_Parity_Ok
+				Stop_Deal:
+011C	355F	clr     HIJACK_RX_PARITY_COUNT[2].2
+				;203			SNZ		F_0or1Bit
+011D	3A5E	snz     HIJACK_RX_PARITY_COUNT[1].4
+				;204			JMP		_hijack_Parity_StopMode_Error
+011E	2924	jmp     _hijack_Parity_StopMode_Error
+				;205			SET		F_Stop_idleMode
+011F	31DF	set     HIJACK_RX_PARITY_COUNT[2].3
+				;206			MOV		A,3
+0120	0F03	mov     a, 3H
+				;207			MOV		hijack_Idle_Count,A
+0121	00DB	mov     HIJACK_IDLE_COUNT, a
+				;208			CLR		F_Parity_StopMode				
+0122	34DF	clr     HIJACK_RX_PARITY_COUNT[2].1
+				;209			JMP		_hijack_Parity_StopMode_RET
+0123	2926	jmp     _hijack_Parity_StopMode_RET
+				;210	_hijack_Parity_StopMode_Error:
+				;211			SET		F_hijack_Rx_Error
+				_hijack_Parity_StopMode_Error:
+0124	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;212			RET	
+0125	0003	ret
+				;213	_hijack_Parity_StopMode_RET:			
+				;214			RET
+				_hijack_Parity_StopMode_RET:
+0126	0003	ret
+				;215	_hijack_Parity_StopMode ENDP
+				;216	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;217	_hijack_PrepareMode PROC
+				;218			SNZ		F_PrepareMode
+				_hijack_PrepareMode:
+0127	3ADE	snz     HIJACK_RX_PARITY_COUNT[1].5
+				;219			RET
+0128	0003	ret
+				;220			SNZ		F_CompleteRx1Bit
+0129	39DE	snz     HIJACK_RX_PARITY_COUNT[1].3
+				;221			RET
+012A	0003	ret
+				;222	;		INC		TEST_COUNT2
+				;223			CLR		F_CompleteRx1Bit
+012B	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;224	;Idle		
+				;225			SNZ		F_0or1Bit
+012C	3A5E	snz     HIJACK_RX_PARITY_COUNT[1].4
+				;226			RET
+012D	0003	ret
+				;227			CLR		F_PrepareMode
+012E	36DE	clr     HIJACK_RX_PARITY_COUNT[1].5
+				;228			SET		F_IdleMode
+012F	335E	set     HIJACK_RX_PARITY_COUNT[1].6
+				;229			RET
+0130	0003	ret
+				;230	_hijack_PrepareMode ENDP
+				;231	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;232	_hijack_StartIdleMode PROC
+				;233			SNZ		F_IdleMode
+				_hijack_StartIdleMode:
+0131	3B5E	snz     HIJACK_RX_PARITY_COUNT[1].6
+				;234			RET
+0132	0003	ret
+				;235	;Idle		
+				;236			SNZ		F_CompleteRx1Bit
+0133	39DE	snz     HIJACK_RX_PARITY_COUNT[1].3
+				;237			RET
+0134	0003	ret
+				;238			CLR		F_CompleteRx1Bit
+0135	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;239			SDZ		hijack_Idle_Count
+0136	17DB	sdz     HIJACK_IDLE_COUNT
+				;240			JMP		$1
+0137	293F	jmp     L013F
+				;241	$0:		
+				;242			SZ		F_0or1Bit
+0138	3E5E	sz      HIJACK_RX_PARITY_COUNT[1].4
+				;243			JMP		$2
+0139	293D	jmp     L013D
+				;244			CLR		F_IdleMode
+013A	375E	clr     HIJACK_RX_PARITY_COUNT[1].6
+				;245			SET		F_ByteMode
+013B	33DE	set     HIJACK_RX_PARITY_COUNT[1].7
+				;246			RET
+013C	0003	ret
+				;247	$2:		
+				;248			SET		F_hijack_Rx_Error	;第四bit 還是1，錯誤
+				L013D:
+013D	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;249			RET
+013E	0003	ret
+				;250	$1:		
+				;251			SZ		F_0or1Bit		
+				L013F:
+013F	3E5E	sz      HIJACK_RX_PARITY_COUNT[1].4
+				;252			RET						
+0140	0003	ret
+				;253			SET		F_hijack_Rx_Error	;3bit 1 Idle 不夠
+0141	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;254			RET				
+0142	0003	ret
+				;255	_hijack_StartIdleMode ENDP
+				;256	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;257	_hijack_ENDIdleMode PROC
+				;258			SNZ		F_Stop_idleMode
+				_hijack_ENDIdleMode:
+0143	39DF	snz     HIJACK_RX_PARITY_COUNT[2].3
+				;259			RET
+0144	0003	ret
+				;260			SNZ		F_CompleteRx1Bit
+0145	39DE	snz     HIJACK_RX_PARITY_COUNT[1].3
+				;261			RET
+0146	0003	ret
+				;262			CLR		F_CompleteRx1Bit
+0147	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;263			INC		TEST_COUNT
+0148	14D8	inc     TEST_COUNT
+				;264			SDZ		hijack_Idle_Count
+0149	17DB	sdz     HIJACK_IDLE_COUNT
+				;265			JMP		$1
+014A	2951	jmp     L0151
+				;266	$0:		
+				;267			SZ		F_0or1Bit
+014B	3E5E	sz      HIJACK_RX_PARITY_COUNT[1].4
+				;268			
+				;269			CLR		F_IdleMode
+014C	375E	clr     HIJACK_RX_PARITY_COUNT[1].6
+				;270			SET		F_ByteMode
+014D	33DE	set     HIJACK_RX_PARITY_COUNT[1].7
+				;271			RET
+014E	0003	ret
+				;272	$2:		
+				;273			SET		F_hijack_Rx_Error	;第四bit 還是1，錯誤
+014F	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;274			RET
+0150	0003	ret
+				;275	$1:		
+				;276	
+				;277			SZ		F_0or1Bit		
+				L0151:
+0151	3E5E	sz      HIJACK_RX_PARITY_COUNT[1].4
+				;278			RET						
+0152	0003	ret
+				;279			SET		F_hijack_Rx_Error	;3bit 1 Idle 不夠
+0153	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;280			RET					
+0154	0003	ret
+				;281	_hijack_ENDIdleMode ENDP
+				;282	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;283	_hijack_Rx_Byte PROC
+				;284			SNZ		F_ByteMode
+				_hijack_Rx_Byte:
+0155	3BDE	snz     HIJACK_RX_PARITY_COUNT[1].7
+				;285			RET
+0156	0003	ret
+				;286			SNZ		F_CompleteRx1Bit
+0157	39DE	snz     HIJACK_RX_PARITY_COUNT[1].3
+				;287			RET
+0158	0003	ret
+				;288			CLR		F_CompleteRx1Bit		
+0159	35DE	clr     HIJACK_RX_PARITY_COUNT[1].3
+				;289			SNZ		F_hijackstartOk
+015A	385F	snz     HIJACK_RX_PARITY_COUNT[2].0
+				;290			JMP		$0
+015B	295D	jmp     L015D
+				;291			JMP		hijack_Rx_ByteEnter
+015C	2968	jmp     hijack_Rx_ByteEnter
+				;292	$0:
+				;293			SNZ		F_0or1Bit
+				L015D:
+015D	3A5E	snz     HIJACK_RX_PARITY_COUNT[1].4
+				;294			JMP		$1
+015E	2961	jmp     L0161
+				;295			SET		F_hijack_Rx_Error
+015F	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;296			RET
+0160	0003	ret
+				;297	$1:
+				;298			SET		F_hijackstartOk
+				L0161:
+0161	305F	set     HIJACK_RX_PARITY_COUNT[2].0
+				;299			MOV		A,16
+0162	0F10	mov     a, 10H
+				;300			MOV		hijack_Rx_Count,A
+0163	00DC	mov     HIJACK_RX_COUNT, a
+				;301			CLR		hijack_Receive_DataH
+0164	1F4A	clr     HIJACK_RECEIVE_DATAH
+				;302			CLR		hijack_Receive_DataL
+0165	1F4B	clr     HIJACK_RECEIVE_DATAL
+				;303			CLR		hijack_Rx_Parity_Count
+0166	1F5D	clr     HIJACK_RX_PARITY_COUNT
+				;304			RET										
+0167	0003	ret
+				;305	hijack_Rx_ByteEnter:
+				;306			SDZ 	hijack_Rx_Count 	;16bit值是否已經讀取完成	
+				hijack_Rx_ByteEnter:
+0168	17DC	sdz     HIJACK_RX_COUNT
+				;307			JMP		hijack_Rx_Byte_LOOP
+0169	296E	jmp     hijack_Rx_Byte_LOOP
+				;308			SET		F_CompleteRx1Bit
+016A	31DE	set     HIJACK_RX_PARITY_COUNT[1].3
+				;309			SET		F_Parity_StopMode	;進入下一個模式
+016B	30DF	set     HIJACK_RX_PARITY_COUNT[2].1
+				;310			CLR		F_ByteMode			
+016C	37DE	clr     HIJACK_RX_PARITY_COUNT[1].7
+				;311			RET
+016D	0003	ret
+				;312	hijack_Rx_Byte_LOOP:
+				;313			CLR		C
+				hijack_Rx_Byte_LOOP:
+016E	340A	clr     C
+				;314			RLC		hijack_Receive_DataL
+016F	1ACB	rlc     HIJACK_RECEIVE_DATAL
+				;315			RLC		hijack_Receive_DataH		
+0170	1ACA	rlc     HIJACK_RECEIVE_DATAH
+				;316			
+				;317			SNZ		F_0or1Bit
+0171	3A5E	snz     HIJACK_RX_PARITY_COUNT[1].4
+				;318			JMP		hijack_Low
+0172	2977	jmp     hijack_Low
+				;319			JMP		hijack_High
+0173	2974	jmp     hijack_High
+				;320	hijack_High:
+				;321			INC		hijack_Rx_Parity_Count
+				hijack_High:
+0174	14DD	inc     HIJACK_RX_PARITY_COUNT
+				;322			SET		hijack_Receive_DataL.0
+0175	304B	set     HIJACK_RECEIVE_DATAL.0
+				;323			JMP		hijack_Next_Bit
+0176	2978	jmp     hijack_Next_Bit
+				;324	hijack_Low:
+				;325			CLR		hijack_Receive_DataL.0
+				hijack_Low:
+0177	344B	clr     HIJACK_RECEIVE_DATAL.0
+				;326	hijack_Next_Bit:
+				;327			RET
+				hijack_Next_Bit:
+0178	0003	ret
+				;328	_hijack_Rx_Byte ENDP
+				;329	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;330	_hijack_Rx_1Bit PROC
+				;331			SNZ		STMP0F
+				_hijack_Rx_1Bit:
+0179	3A11	snz     STMP0F
+				;332			JMP		CCRA_interrupt
+017A	2982	jmp     CCRA_interrupt
+				;333	CCRP_interrupt:					
+				;334			CLR		STMP0F
+				CCRP_interrupt:
+017B	3611	clr     STMP0F
+				;335			INC		hijack_CCRP_count
+017C	14D0	inc     HIJACK_CCRP_COUNT
+				;336			MOV		A,hijack_CCRP_count
+017D	0750	mov     a, HIJACK_CCRP_COUNT
+				;337			XOR		A,hijack_Time_Out		
+017E	0C28	xor     a, 28H
+				;338			SNZ		Z
+017F	390A	snz     Z
+				;339			RET
+0180	0003	ret
+				;340			JMP		_hijack_Rx_1Bit_Error ;超出時間，錯誤
+0181	29E5	jmp     _hijack_Rx_1Bit_Error
+				;341	CCRA_interrupt:
+				;342			SNZ		STMA0F
+				CCRA_interrupt:
+0182	3A91	snz     STMA0F
+				;343			JMP		_hijack_Rx_1Bit_Error ;不是CCRA 中斷也不是CCRP中斷，錯誤
+0183	29E5	jmp     _hijack_Rx_1Bit_Error
+				;344			CLR		STMA0F
+0184	3691	clr     STMA0F
+				;345	;		INC		TEST_COUNT
+				;346			MOV		A,00001000B
+0185	0F08	mov     a, 8H
+				;347			XORM	A,PA
+0186	0494	xorm    a, PA
+				;348			SZ		F_First_CCRA
+0187	3C5E	sz      HIJACK_RX_PARITY_COUNT[1].0
+				;349			JMP		Second_CCRA
+0188	29A5	jmp     Second_CCRA
+				;350	First_CCRA:	;第一次CCRA中斷 上升沿									
+				;351			SET		F_First_CCRA
+				First_CCRA:
+0189	305E	set     HIJACK_RX_PARITY_COUNT[1].0
+				;352			MOV		A,STM0AH					;Save CCRA value
+018A	072D	mov     a, STM0AH
+				;353			MOV		high_CCRA1_H,A	
+018B	00D2	mov     HIGH_CCRA1_H, a
+				;354			MOV		A,STM0AL					
+018C	072C	mov     a, STM0AL
+				;355			MOV		high_CCRA1_L,A	
+018D	00D3	mov     HIGH_CCRA1_L, a
+				;356			MOV		A,hijack_CCRP_count
+018E	0750	mov     a, HIJACK_CCRP_COUNT
+				;357			MOV		hijack_Period_L,A			;保存CCRP 的計數值
+018F	00D7	mov     HIJACK_PERIOD_L, a
+				;358			CLR		hijack_CCRP_count
+0190	1F50	clr     HIJACK_CCRP_COUNT
+				;359	;		INC		TEST_COUNT
+				;360	;計算週期
+				;361	;N x 512-high_First_CCRA_Count + high_Second_CCRA_Count
+				;362	if stmCCRP_T==512
+				;363			MOV		A,9
+0191	0F09	mov     a, 9H
+				;364			MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+0192	00CE	mov     HIJACK_TEMP_COUNT1, a
+				;365	endif
+				;366	if stmCCRP_T==256
+				;367			MOV		A,8
+				;368			MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+				;369	endif
+				;370	$0:
+				;371			CLR		C 							;移位進行乘法運算
+				L0193:
+0193	340A	clr     C
+				;372			RLC		hijack_Period_L
+0194	1AD7	rlc     HIJACK_PERIOD_L
+				;373			RLC		hijack_Period_H	
+0195	1AD6	rlc     HIJACK_PERIOD_H
+				;374			SDZ		hijack_temp_count1
+0196	17CE	sdz     HIJACK_TEMP_COUNT1
+				;375			JMP		$0		
+0197	2993	jmp     L0193
+				;376			CLR		C							
+0198	340A	clr     C
+				;377			MOV		A,high_CCRA1_L				;加上第二次取得的CCRA 的值
+0199	0753	mov     a, HIGH_CCRA1_L
+				;378			ADDM	A,hijack_Period_L
+019A	03D7	addm    a, HIJACK_PERIOD_L
+				;379			MOV		A,high_CCRA1_H
+019B	0752	mov     a, HIGH_CCRA1_H
+				;380			ADCM	A,hijack_Period_H		
+019C	13D6	adcm    a, HIJACK_PERIOD_H
+				;381			CLR		C 
+019D	340A	clr     C
+				;382			MOV		A,hijack_Period_L			;減去第一次取得的 CCRA 的值
+019E	0757	mov     a, HIJACK_PERIOD_L
+				;383			SUB		A,high_CCRA2_L
+019F	0255	sub     a, HIGH_CCRA2_L
+				;384			MOV		hijack_Period_L,A
+01A0	00D7	mov     HIJACK_PERIOD_L, a
+				;385			MOV		A,hijack_Period_H
+01A1	0756	mov     a, HIJACK_PERIOD_H
+				;386			SBC		A,high_CCRA2_H
+01A2	1254	sbc     a, HIGH_CCRA2_H
+				;387			MOV		hijack_Period_H,A		
+01A3	00D6	mov     HIJACK_PERIOD_H, a
+				;388	
+				;389			JMP		hijack_Period					
+01A4	29C0	jmp     hijack_Period_0
+				;390	Second_CCRA:;第二次CCRA中斷 上升沿
+				;391			CLR		F_First_CCRA
+				Second_CCRA:
+01A5	345E	clr     HIJACK_RX_PARITY_COUNT[1].0
+				;392			MOV		A,STM0AH					;Save CCRA value
+01A6	072D	mov     a, STM0AH
+				;393			MOV		high_CCRA2_H,A	;
+01A7	00D4	mov     HIGH_CCRA2_H, a
+				;394			MOV		A,STM0AL					;
+01A8	072C	mov     a, STM0AL
+				;395			MOV		high_CCRA2_L,A	;
+01A9	00D5	mov     HIGH_CCRA2_L, a
+				;396			MOV		A,hijack_CCRP_count
+01AA	0750	mov     a, HIJACK_CCRP_COUNT
+				;397			MOV		hijack_Period_L,A			;保存CCRP 的計數值
+01AB	00D7	mov     HIJACK_PERIOD_L, a
+				;398			CLR		hijack_CCRP_count
+01AC	1F50	clr     HIJACK_CCRP_COUNT
+				;399	;		INC		TEST_COUNT		
+				;400	;計算週期
+				;401	;N x 512-high_First_CCRA_Count + high_Second_CCRA_Count
+				;402	if stmCCRP_T==512
+				;403			MOV		A,9
+01AD	0F09	mov     a, 9H
+				;404			MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+01AE	00CE	mov     HIJACK_TEMP_COUNT1, a
+				;405	endif
+				;406	if stmCCRP_T==256
+				;407			MOV		A,8
+				;408			MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+				;409	endif
+				;410	$0:
+				;411			CLR		C 							;移位進行乘法運算
+				L01AF:
+01AF	340A	clr     C
+				;412			RLC		hijack_Period_L
+01B0	1AD7	rlc     HIJACK_PERIOD_L
+				;413			RLC		hijack_Period_H	
+01B1	1AD6	rlc     HIJACK_PERIOD_H
+				;414			SDZ		hijack_temp_count1
+01B2	17CE	sdz     HIJACK_TEMP_COUNT1
+				;415			JMP		$0		
+01B3	29AF	jmp     L01AF
+				;416			CLR		C							
+01B4	340A	clr     C
+				;417			MOV		A,high_CCRA2_L				;加上第二次取得的CCRA 的值
+01B5	0755	mov     a, HIGH_CCRA2_L
+				;418			ADDM	A,hijack_Period_L
+01B6	03D7	addm    a, HIJACK_PERIOD_L
+				;419			MOV		A,high_CCRA2_H
+01B7	0754	mov     a, HIGH_CCRA2_H
+				;420			ADCM	A,hijack_Period_H		
+01B8	13D6	adcm    a, HIJACK_PERIOD_H
+				;421			CLR		C 
+01B9	340A	clr     C
+				;422			MOV		A,hijack_Period_L			;減去第一次取得的 CCRA 的值
+01BA	0757	mov     a, HIJACK_PERIOD_L
+				;423			SUB		A,high_CCRA1_L
+01BB	0253	sub     a, HIGH_CCRA1_L
+				;424			MOV		hijack_Period_L,A
+01BC	00D7	mov     HIJACK_PERIOD_L, a
+				;425			MOV		A,hijack_Period_H
+01BD	0756	mov     a, HIJACK_PERIOD_H
+				;426			SBC		A,high_CCRA1_H
+01BE	1252	sbc     a, HIGH_CCRA1_H
+				;427			MOV		hijack_Period_H,A		
+01BF	00D6	mov     HIJACK_PERIOD_H, a
+				;428	hijack_Period:		
+				;429	;判斷是否是0
+				;430	hijack_Period_0:
+				;431	;		INC		TEST_COUNT				
+				;432			MOV		A,hijack_Period_H
+				hijack_Period_0:
+				hijack_Period:
+01C0	0756	mov     a, HIJACK_PERIOD_H
+				;433			XOR		A,5					;hijack_Period0_Max 高八位
+01C1	0C05	xor     a, 5H
+				;434			SNZ		Z
+01C2	390A	snz     Z
+				;435			JMP		hijack_Period_1				;高Byte不相等，判斷是否為Bit 1
+01C3	29CE	jmp     hijack_Period_1
+				;436	;高位相等，判斷低八位是否在容差範圍內		
+				;437	        MOV     A,hijack_Period_L
+01C4	0757	mov     a, HIJACK_PERIOD_L
+				;438	        SUB     A,94H +Tolerance 
+01C5	0AD5	sub     a, D5H
+				;439	        SZ      C		
+01C6	3C0A	sz      C
+				;440			JMP		_hijack_Rx_1Bit_Error		;週期太大錯誤
+01C7	29E5	jmp     _hijack_Rx_1Bit_Error
+				;441	        MOV     A,hijack_Period_L
+01C8	0757	mov     a, HIJACK_PERIOD_L
+				;442	        SUB     A,94H - Tolerance 
+01C9	0A53	sub     a, 53H
+				;443	        SNZ      C			
+01CA	380A	snz     C
+				;444			JMP		_hijack_Rx_1Bit_Error		;週期太小錯誤
+01CB	29E5	jmp     _hijack_Rx_1Bit_Error
+				;445			CLR		F_0or1Bit					;由週期判斷為Bit 0
+01CC	365E	clr     HIJACK_RX_PARITY_COUNT[1].4
+				;446			JMP		_hijack_Rx_1Bit_RET
+01CD	29E3	jmp     _hijack_Rx_1Bit_RET
+				;447	hijack_Period_1:	;是否在294H~316H之間		
+				;448			MOV		A,hijack_Period_H
+				hijack_Period_1:
+01CE	0756	mov     a, HIJACK_PERIOD_H
+				;449			XOR		A,2					;hijack_Period1_Max 高八位
+01CF	0C02	xor     a, 2H
+				;450			SZ		Z
+01D0	3D0A	sz      Z
+				;451			JMP		highByte2				;==2，判斷是否在294~300之間
+01D1	29DC	jmp     highByte2
+				;452	;是否==3
+				;453			MOV		A,hijack_Period_H
+01D2	0756	mov     a, HIJACK_PERIOD_H
+				;454			XOR		A,3					;hijack_Period1_Max 高八位
+01D3	0C03	xor     a, 3H
+				;455			SZ		Z
+01D4	3D0A	sz      Z
+				;456			JMP		highByte3	
+01D5	29D7	jmp     highByte3
+				;457			JMP		_hijack_Rx_1Bit_Error	;高Byte既不是2也不是3，錯誤
+01D6	29E5	jmp     _hijack_Rx_1Bit_Error
+				;458	highByte3: ;300~316H
+				;459	        MOV     A,hijack_Period_L
+				highByte3:
+01D7	0757	mov     a, HIJACK_PERIOD_L
+				;460	        SUB     A,016H
+01D8	0A16	sub     a, 16H
+				;461	        SZ      C
+01D9	3C0A	sz      C
+				;462	        JMP		_hijack_Rx_1Bit_Error
+01DA	29E5	jmp     _hijack_Rx_1Bit_Error
+				;463	        JMP		thisis1		
+01DB	29E1	jmp     thisis1
+				;464	highByte2:		
+				;465	;294H~300H之間
+				;466	        MOV     A,hijack_Period_L
+				highByte2:
+01DC	0757	mov     a, HIJACK_PERIOD_L
+				;467	        SUB     A,094H
+01DD	0A94	sub     a, 94H
+				;468	        SNZ      C
+01DE	380A	snz     C
+				;469	        JMP		_hijack_Rx_1Bit_Error
+01DF	29E5	jmp     _hijack_Rx_1Bit_Error
+				;470	        JMP		thisis1
+01E0	29E1	jmp     thisis1
+				;471	thisis1:
+				;472			SET		F_0or1Bit
+				thisis1:
+01E1	325E	set     HIJACK_RX_PARITY_COUNT[1].4
+				;473			JMP		_hijack_Rx_1Bit_RET				
+01E2	29E3	jmp     _hijack_Rx_1Bit_RET
+				;474	
+				;475	_hijack_Rx_1Bit_RET:
+				;476			SET		F_CompleteRx1Bit		
+				_hijack_Rx_1Bit_RET:
+01E3	31DE	set     HIJACK_RX_PARITY_COUNT[1].3
+				;477			RET
+01E4	0003	ret
+				;478	_hijack_Rx_1Bit_Error:
+				;479			SET		F_hijack_Rx_Error		;CCRP 連續發生的次數超過設定值(週期時間太長 Error)
+				_hijack_Rx_1Bit_Error:
+01E5	30DE	set     HIJACK_RX_PARITY_COUNT[1].1
+				;480			RET								;置錯誤標誌位
+01E6	0003	ret
+				;481	_hijack_Rx_1Bit ENDP
+				;482	
+				;483	
+				;484	
+				;485		
+				;486	
+				;487	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;488	_hijack_init PROC
+				;489	if stmCCRP_T==512
+				;490			MOV		A,00000100B	;4/fsys  512 CCRP interrput
+				_hijack_init:
+01E7	0F04	mov     a, 4H
+				;491			MOV		STM0C0,A
+01E8	00A8	mov     STM0C0, a
+				;492	endif
+				;493	if stmCCRP_T==256
+				;494			MOV		A,00000010B	;4/fsys  512 CCRP interrput
+				;495			MOV		STM0C0,A
+				;496	endif	
+				;497			MOV		A,01000000B	;輸入捕捉模式、上升沿觸發、P 清除time
+01E9	0F40	mov     a, 40H
+				;498			MOV		STM0C1,A
+01EA	00A9	mov     STM0C1, a
+				;499			
+				;500			SET		hijack_channel_L_IO
+01EB	3315	set     PAC6
+				;501			CLR		hijack_channel_L
+01EC	3714	clr     PA6
+				;502			
+				;503			CLR		STP0IPS		;STP0I on PA6
+01ED	3618	clr     STP0IPS
+				;504			
+				;505			SET		STMA0E		;開啟Timer 輸入捕捉模式中斷
+01EE	3091	set     STMA0E
+				;506			SET		STMP0E
+01EF	3011	set     STMP0E
+				;507			SET		MF0E
+01F0	300F	set     MF0E
+				;508			CLR		MF0F
+01F1	360F	clr     MF0F
+				;509			CLR		STMA0F
+01F2	3691	clr     STMA0F
+				;510			CLR		STMP0F
+01F3	3611	clr     STMP0F
+				;511			SET		ST0ON
+01F4	31A8	set     ST0ON
+				;512			SET		EMI
+01F5	300E	set     EMI
+				;513			RET
+01F6	0003	ret
+				;514	_hijack_init ENDP
+				;515	
+				;516	
+				;517	
+				;518	
+				;519	;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;520	_hijack_Send_Byte PROC
+				;521	;		local temp  D
+				;522	 		CLR		hijack_channel_MIC
+				_hijack_Send_Byte:
+01F7	3514	clr     PA2
+				;523	 		MOV		A,8 ;SET 8 BIT COUNTER
+01F8	0F08	mov     a, 8H
+				;524	 		MOV		hijack_temp_count1,A
+01F9	00CE	mov     HIJACK_TEMP_COUNT1, a
+				;525	 		CLR		hijack_temp_count2		;作為奇偶校驗位計數
+01FA	1F4F	clr     HIJACK_TEMP_COUNT2
+				;526	hijack_send_8bitloop:
+				;527			SZ		hijack_temp_Byte.7
+				hijack_send_8bitloop:
+01FB	3FCD	sz      HIJACK_TEMP_BYTE.7
+				;528			JMP		hijack_send_high
+01FC	29FE	jmp     hijack_send_high
+				;529			JMP		hijack_send_low
+01FD	2A0A	jmp     hijack_send_low
+				;530	hijack_send_high:
+				;531			INC		hijack_temp_count2		;奇校驗
+				hijack_send_high:
+01FE	14CF	inc     HIJACK_TEMP_COUNT2
+				;532			SET		hijack_channel_MIC
+01FF	3114	set     PA2
+				;533			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0200	0F3C	mov     a, 3CH
+0201	0001	clr     wdt
+				L0202:
+0202	1785	sdz     ACC
+0203	2A02	jmp     L0202
+				;534			CLR		hijack_channel_MIC
+0204	3514	clr     PA2
+				;535			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0205	0F3C	mov     a, 3CH
+0206	0001	clr     wdt
+				L0207:
+0207	1785	sdz     ACC
+0208	2A07	jmp     L0207
+				;536			JMP		hijack_send_Next_Bit	
+0209	2A14	jmp     hijack_send_Next_Bit
+				;537	hijack_send_low:		
+				;538			SET		hijack_channel_MIC	;
+				hijack_send_low:
+020A	3114	set     PA2
+				;539			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+020B	0F78	mov     a, 78H
+020C	0001	clr     wdt
+				L020D:
+020D	1785	sdz     ACC
+020E	2A0D	jmp     L020D
+				;540			CLR		hijack_channel_MIC
+020F	3514	clr     PA2
+				;541			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 		
+0210	0F78	mov     a, 78H
+0211	0001	clr     wdt
+				L0212:
+0212	1785	sdz     ACC
+0213	2A12	jmp     L0212
+				;542	hijack_send_Next_Bit:
+				;543			RL		hijack_temp_Byte
+				hijack_send_Next_Bit:
+0214	18CD	rl      HIJACK_TEMP_BYTE
+				;544			SDZ		hijack_temp_count1
+0215	17CE	sdz     HIJACK_TEMP_COUNT1
+				;545			JMP		hijack_send_8bitloop
+0216	29FB	jmp     hijack_send_8bitloop
+				;546	hijack_send_odd_Bit:
+				;547			SZ		hijack_temp_count2.0
+				hijack_send_odd_Bit:
+0217	3C4F	sz      HIJACK_TEMP_COUNT2.0
+				;548			JMP		hijack_send_odd_Bit_Low
+0218	2A24	jmp     hijack_send_odd_Bit_Low
+				;549	;		JMP		hijack_odd_Bit_high
+				;550	hijack_send_odd_Bit_high:
+				;551			SET		hijack_channel_MIC
+				hijack_send_odd_Bit_high:
+0219	3114	set     PA2
+				;552			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+021A	0F3C	mov     a, 3CH
+021B	0001	clr     wdt
+				L021C:
+021C	1785	sdz     ACC
+021D	2A1C	jmp     L021C
+				;553			CLR		hijack_channel_MIC
+021E	3514	clr     PA2
+				;554			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+021F	0F3C	mov     a, 3CH
+0220	0001	clr     wdt
+				L0221:
+0221	1785	sdz     ACC
+0222	2A21	jmp     L0221
+				;555			JMP		_hijack_Send_Byte_RET		
+0223	2A2E	jmp     _hijack_Send_Byte_RET
+				;556	hijack_send_odd_Bit_Low:
+				;557			SET		hijack_channel_MIC	;
+				hijack_send_odd_Bit_Low:
+0224	3114	set     PA2
+				;558			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0225	0F78	mov     a, 78H
+0226	0001	clr     wdt
+				L0227:
+0227	1785	sdz     ACC
+0228	2A27	jmp     L0227
+				;559			CLR		hijack_channel_MIC
+0229	3514	clr     PA2
+				;560			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 							
+022A	0F78	mov     a, 78H
+022B	0001	clr     wdt
+				L022C:
+022C	1785	sdz     ACC
+022D	2A2C	jmp     L022C
+				;561	_hijack_Send_Byte_RET:
+				;562			RET 
+				_hijack_Send_Byte_RET:
+022E	0003	ret
+				;563	_hijack_Send_Byte ENDP
+				;564	;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;565	_hijack_Send_Bias PROC
+				;566	;用於先建立bias
+				;567	 		MOV		A,12 ;SET 8 BIT COUNTER
+				_hijack_Send_Bias:
+022F	0F0C	mov     a, CH
+				;568	 		MOV		hijack_temp_count1,A
+0230	00CE	mov     HIJACK_TEMP_COUNT1, a
+				;569	$1:		
+				;570			SET		hijack_channel_MIC	;
+				L0231:
+0231	3114	set     PA2
+				;571			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0232	0F78	mov     a, 78H
+0233	0001	clr     wdt
+				L0234:
+0234	1785	sdz     ACC
+0235	2A34	jmp     L0234
+				;572			CLR		hijack_channel_MIC
+0236	3514	clr     PA2
+				;573			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 		
+0237	0F78	mov     a, 78H
+0238	0001	clr     wdt
+				L0239:
+0239	1785	sdz     ACC
+023A	2A39	jmp     L0239
+				;574			SDZ		hijack_temp_count1
+023B	17CE	sdz     HIJACK_TEMP_COUNT1
+				;575			JMP		$1					
+023C	2A31	jmp     L0231
+				;576			RET
+023D	0003	ret
+				;577	_hijack_Send_Bias ENDP
+				;578	;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;579	_hijack_Send_Idle PROC
+				;580	;,3bit 1頻率的idle信號，用於信號發送的開始和結束
+				;581	 		MOV		A,3 					;SET 8 BIT COUNTER
+				_hijack_Send_Idle:
+023E	0F03	mov     a, 3H
+				;582	 		MOV		hijack_temp_count1,A
+023F	00CE	mov     HIJACK_TEMP_COUNT1, a
+				;583	$1: 		
+				;584			SET		hijack_channel_MIC	;
+				L0240:
+0240	3114	set     PA2
+				;585			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0241	0F3C	mov     a, 3CH
+0242	0001	clr     wdt
+				L0243:
+0243	1785	sdz     ACC
+0244	2A43	jmp     L0243
+				;586			CLR		hijack_channel_MIC
+0245	3514	clr     PA2
+				;587			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0246	0F3C	mov     a, 3CH
+0247	0001	clr     wdt
+				L0248:
+0248	1785	sdz     ACC
+0249	2A48	jmp     L0248
+				;588			SDZ		hijack_temp_count1
+024A	17CE	sdz     HIJACK_TEMP_COUNT1
+				;589			JMP		$1
+024B	2A40	jmp     L0240
+				;590			RET	
+024C	0003	ret
+				;591	_hijack_Send_Idle ENDP
+				;592	;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;593	_hijack_Send_Start PROC
+				;594	;1bit 0頻率 用於開始信號,		
+				;595			SET		hijack_channel_MIC	;
+				_hijack_Send_Start:
+024D	3114	set     PA2
+				;596			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+024E	0F78	mov     a, 78H
+024F	0001	clr     wdt
+				L0250:
+0250	1785	sdz     ACC
+0251	2A50	jmp     L0250
+				;597			CLR		hijack_channel_MIC
+0252	3514	clr     PA2
+				;598			DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0253	0F78	mov     a, 78H
+0254	0001	clr     wdt
+				L0255:
+0255	1785	sdz     ACC
+0256	2A55	jmp     L0255
+				;599			RET	
+0257	0003	ret
+				;600	_hijack_Send_Start ENDP
+				;601	;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				;602	_hijack_Send_Stop PROC
+				;603	;1bit 1頻率用於結束信號,		
+				;604			SET		hijack_channel_MIC	;
+				_hijack_Send_Stop:
+0258	3114	set     PA2
+				;605			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+0259	0F3C	mov     a, 3CH
+025A	0001	clr     wdt
+				L025B:
+025B	1785	sdz     ACC
+025C	2A5B	jmp     L025B
+				;606			CLR		hijack_channel_MIC
+025D	3514	clr     PA2
+				;607			DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+025E	0F3C	mov     a, 3CH
+025F	0001	clr     wdt
+				L0260:
+0260	1785	sdz     ACC
+0261	2A60	jmp     L0260
+				;608			RET	
+0262	0003	ret
+				;609	_hijack_Send_Stop ENDP
+				data .SECTION 'DATA'
+				R_ATEMP DB DUP (?)
+				R_STATUS DB DUP (?)
+				IIC_DEVICE_ADDR DB DUP (?)
+				IIC_RECEIVE_DATA DB DUP (?)
+				IIC_SEND_DATA DB DUP (?)
+				IIC_TEMP_CONUNT1 DB DUP (?)
+				IIC_TEMP_CONUNT2 DB DUP (?)
+				IIC_TEMP_BYTE DB DUP (?)
+				HIJACK_RECEIVE_DATAH DB DUP (?)
+				HIJACK_RECEIVE_DATAL DB DUP (?)
+				HIJACK_SEND_DATA DB DUP (?)
+				HIJACK_TEMP_BYTE DB DUP (?)
+				HIJACK_TEMP_COUNT1 DB DUP (?)
+				HIJACK_TEMP_COUNT2 DB DUP (?)
+				HIJACK_CCRP_COUNT DB DUP (?)
+				HIJACK_RX_STEP DB DUP (?)
+				HIGH_CCRA1_H DB DUP (?)
+				HIGH_CCRA1_L DB DUP (?)
+				HIGH_CCRA2_H DB DUP (?)
+				HIGH_CCRA2_L DB DUP (?)
+				HIJACK_PERIOD_H DB DUP (?)
+				HIJACK_PERIOD_L DB DUP (?)
+				TEST_COUNT DB DUP (?)
+				TEST_COUNT2 DB DUP (?)
+				TEST_COUNT3 DB DUP (?)
+				HIJACK_IDLE_COUNT DB DUP (?)
+				HIJACK_RX_COUNT DB DUP (?)
+				HIJACK_RX_PARITY_COUNT DB DUP (?)
+				F_EMI DB DUP (?) ; F_EMI
+				IIC_TEMP_FLAG DB DUP (?) ; IIC_TEMP_FLAG
+				F_FIRST_CCRA DB DUP (?) ; F_FIRST_CCRA
+				F_HIJACK_RX_ERROR DB DUP (?) ; F_HIJACK_RX_ERROR
+				F_HIJACK_RX_START DB DUP (?) ; F_HIJACK_RX_START
+				F_COMPLETERX1BIT DB DUP (?) ; F_COMPLETERX1BIT
+				F_0OR1BIT DB DUP (?) ; F_0OR1BIT
+				F_PREPAREMODE DB DUP (?) ; F_PREPAREMODE
+				F_IDLEMODE DB DUP (?) ; F_IDLEMODE
+				F_BYTEMODE DB DUP (?) ; F_BYTEMODE
+				F_HIJACKSTARTOK DB DUP (?) ; F_HIJACKSTARTOK
+				F_PARITY_STOPMODE DB DUP (?) ; F_PARITY_STOPMODE
+				F_PARITY_OK DB DUP (?) ; F_PARITY_OK
+				F_STOP_IDLEMODE DB DUP (?) ; F_STOP_IDLEMODE
+				F_FIRST_PARITY_STOPMODE DB DUP (?) ; F_FIRST_PARITY_STOPMODE

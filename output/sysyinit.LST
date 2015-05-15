@@ -1,0 +1,111 @@
+"File: sysyinit.asm  Assembler  Version 2.93      Page 1
+
+
+   1  0000              ;___________________________________________________________________
+   2  0000              ;___________________________________________________________________
+   3  0000              ;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+   4  0000              ;File Name :    sysinit.asm
+   5  0000              ;Targer :       hijack TEST Board
+   6  0000              ;MCU :          HT68F002
+   7  0000              ;Version :      V00
+   8  0000              ;Author :       ChenTing
+   9  0000              ;Date :         2015/04/10
+  10  0000              ;Description :  音頻通信程序測試
+  11  0000              ;				系統初始化程序
+  12  0000              ;History : 
+  13  0000              ;___________________________________________________________________
+  14  0000              ;___________________________________________________________________
+  15  0000              include config.inc
+
+
+
+
+
+
+  16  0000              include target.inc
+
+
+  17  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  18  0000              ;@---------------------Library API------------------------------@
+  19  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+  20  0000              Public 	_CLEAR_RAM
+  21  0000              Public 	_INIT_PORT
+  22  0000              Public	_INIT_WDT
+  23  0000              public  _INIT_SysFrequency
+  24  0000              public  _INIT_LVD
+  25  0000              
+  26  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  27  0000              
+  28  0000              						;-----------Clear RAM----------;
+  29  0000              ;@SUBROUTINE
+  30  0000              ;HT66F4540 , bank0:40h-FFh  )
+  31  0000              _CLEAR_RAM PROC
+  32  0000  0F40                mov     A,040H          
+  33  0001  0081                mov     MP0,A           
+  34  0002  0F40                mov     A,64d          
+  35  0003              CLEAR_RAM_LOOP:                    
+  36  0003  1F00                clr     IAR0            
+  37  0004  1481                inc     MP0             
+  38  0005  1785                SDZ     ACC             
+  39  0006  2800     R          JMP     CLEAR_RAM_LOOP     
+  40  0007  0003                RET
+  41  0008              _CLEAR_RAM ENDP
+  42  0008              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  43  0008              						;----------Initial Port----------;
+  44  0008              ;SUBROUTINE
+  45  0008              _INIT_PORT PROC
+  46  0008  0F00                MOV     A,00H
+  47  0009  0094                MOV     PA,A        
+  48  000A  0F00                MOV     A,00H
+  49  000B  0095                MOV     PAC,A      
+  50  000C  0F00                MOV		A,00H
+  51  000D  0096                MOV		PAPU,A       
+"File: sysyinit.asm  Assembler  Version 2.93      Page 2
+
+  52  000E  0F00                MOV		A,00H
+  53  000F  0097                MOV		PAWU,A
+  54  0010              
+  55  0010  0F00        		MOV		A,00H
+  56  0011  00A6        		MOV		PASR,A
+  57  0012              
+  58  0012  3315        		SET		PAC6		
+  59  0013  3095        		SET		PAC1
+  60  0014  3097        		SET		PAWU1	        	
+  61  0015  0003                RET
+  62  0016              _INIT_PORT ENDP
+  63  0016              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  64  0016              						;----------Initial WDTC----------;
+  65  0016              ;SUBROUTINE
+  66  0016              _INIT_WDT PROC
+  67  0016  0F53        	    MOV		A,WDT_Function_Default
+  68  0017  0099        	    MOV		WDTC,A    	
+  69  0018  0003                RET
+  70  0019              _INIT_WDT ENDP
+  71  0019              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@       
+  72  0019              						;----------Initial SysFrequency----------;
+  73  0019              ;SUBROUTINE
+  74  0019              _INIT_SysFrequency PROC
+  75  0019  0FE0        	    MOV		A,SYSFrequency_Default
+  76  001A  008B        	    MOV		SMOD,A    	
+  77  001B  0003                RET
+  78  001C              _INIT_SysFrequency ENDP
+  79  001C              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  
+  80  001C              						;----------Initial LVD----------;
+  81  001C              ;SUBROUTINE
+  82  001C              _INIT_LVD PROC
+  83  001C  0F11        	    MOV		A,LVD_Voltage_Default
+  84  001D  008C        	    MOV		LVDC,A    	
+  85  001E  0003                RET
+  86  001F              _INIT_LVD ENDP
+  87  001F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  
+  88  001F              						;----------Initial EMI----------;
+  89  001F              ;SUBROUTINE
+  90  001F              ;_INIT_LVD PROC
+  91  001F              ;	    MOV		A,LVD_Voltage_Default
+  92  001F              ;	    MOV		LVDC,A    	
+  93  001F              ;        RET
+  94  001F              ;_INIT_LVD ENDP
+  95  001F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+
+
+        0 Errors, 0 Warnings

@@ -32,7 +32,8 @@ EXTERN  _hijack_init			:NEAR
 
 EXTERN	hijack_Receive_DataH	:BYTE
 EXTERN	hijack_Receive_DataL	:BYTE
-EXTERN	hijack_Send_Data 		:BYTE
+EXTERN	hijack_Send_Data_High	:BYTE
+EXTERN	hijack_Send_Data_Low	:BYTE
 EXTERN	IIC_Receive_Data 		:BYTE
 EXTERN	IIC_Send_Data 			:BYTE
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -91,6 +92,11 @@ POWER_ON:
 		MOV		IIC_Send_Data,A
 		CLR		PAC3
 		SET		PA3
+		MOV		A,0A5H
+		MOV		hijack_Send_Data_High,A
+		MOV		A,05AH
+		MOV		hijack_Send_Data_Low,A
+		
 MAIN:
 
 		CLR		WDT

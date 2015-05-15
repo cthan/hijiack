@@ -27,7 +27,8 @@ public  _hijack_init
 Public 	_hijack_Receive
 public  _hijack_Send
 
-public	hijack_Send_Data
+public	hijack_Send_Data_High
+public	hijack_Send_Data_Low
 public	hijack_Receive_DataH
 public	hijack_Receive_DataL
 
@@ -39,7 +40,8 @@ hijack_datal	.section	'data'
 
 hijack_Receive_DataH		DB	?
 hijack_Receive_DataL		DB	?
-hijack_Send_Data			DB	?
+hijack_Send_Data_High		DB	?
+hijack_Send_Data_Low		DB	?
 hijack_temp_Byte			DB	?
 hijack_temp_count1			DB	?
 hijack_temp_count2			DB	?
@@ -97,10 +99,14 @@ $2:
 		CALL	_hijack_Send_Idle
 ;start信號	  1bit  0
 		CALL	_hijack_Send_Start				
-;發送1Byte data + 奇校驗
-		MOV		A,0A5H
+;發送2Byte data + 奇校驗
+ 		CLR		hijack_temp_count2		;作為奇偶校驗位計數
+		MOV		A,hijack_Send_Data_High
+		MOV		hijack_temp_Byte,A
+		MOV		A,hijack_Send_Data_Low
 		MOV		hijack_temp_Byte,A		
-		CALL	_hijack_Send_Byte		
+		CALL	_hijack_Send_Byte
+				
 ;stop信號	  1bit 1
 		CALL	_hijack_Send_Stop
 ;3bit結束信號
@@ -522,7 +528,6 @@ _hijack_Send_Byte PROC
  		CLR		hijack_channel_MIC
  		MOV		A,8 ;SET 8 BIT COUNTER
  		MOV		hijack_temp_count1,A
- 		CLR		hijack_temp_count2		;作為奇偶校驗位計數
 hijack_send_8bitloop:
 		SZ		hijack_temp_Byte.7
 		JMP		hijack_send_high
@@ -543,24 +548,29 @@ hijack_send_Next_Bit:
 		RL		hijack_temp_Byte
 		SDZ		hijack_temp_count1
 		JMP		hijack_send_8bitloop
-hijack_send_odd_Bit:
+
+_hijack_Send_Byte_RET:
+		RET 
+_hijack_Send_Byte ENDP
+;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+hijack_send_odd_Bit PROC
 		SZ		hijack_temp_count2.0
 		JMP		hijack_send_odd_Bit_Low
-;		JMP		hijack_odd_Bit_high
+;		JMP		hijack_odd_Bit_high	
 hijack_send_odd_Bit_high:
 		SET		hijack_channel_MIC
 		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
 		CLR		hijack_channel_MIC
 		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
-		JMP		_hijack_Send_Byte_RET		
+		JMP		hijack_send_odd_Bit_RET		
 hijack_send_odd_Bit_Low:
 		SET		hijack_channel_MIC	;
 		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
 		CLR		hijack_channel_MIC
-		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 							
-_hijack_Send_Byte_RET:
-		RET 
-_hijack_Send_Byte ENDP
+		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+hijack_send_odd_Bit_RET:
+		RET 							
+hijack_send_odd_Bit ENDP
 ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 _hijack_Send_Bias PROC
 ;用於先建立bias

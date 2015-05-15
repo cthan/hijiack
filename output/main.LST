@@ -1,0 +1,131 @@
+"File: main.asm      Assembler  Version 2.93      Page 1
+
+
+   1  0000              ;___________________________________________________________________
+   2  0000              ;___________________________________________________________________
+   3  0000              ;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+   4  0000              ;File Name :    main.asm
+   5  0000              ;Targer :       hijack Board
+   6  0000              ;MCU :          HT68F002
+   7  0000              ;Version :      V00
+   8  0000              ;Author :       ChenTing
+   9  0000              ;Date :         2015/04/10
+  10  0000              ;Description :  hijack 音頻通信測試
+  11  0000              ;History : 
+  12  0000              ;___________________________________________________________________
+  13  0000              ;___________________________________________________________________
+  14  0000              
+  15  0000              include config.inc
+
+
+
+
+
+
+  16  0000              include target.inc
+
+
+  17  0000              include hijack.inc
+
+
+  18  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  19  0000              ;@------------------------Library API------------------------------@
+  20  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  21  0000              EXTERN  _CLEAR_RAM				:NEAR
+  22  0000              EXTERN  _INIT_PORT				:NEAR 
+  23  0000              EXTERN  _INIT_WDT				:NEAR
+  24  0000              EXTERN  _INIT_SysFrequency		:NEAR
+  25  0000              EXTERN  _INIT_LVD				:NEAR
+  26  0000              EXTERN  _IIC_INT_ISR			:NEAR
+  27  0000              EXTERN  _IIC_init				:NEAR
+  28  0000              
+  29  0000              EXTERN  _hijack_Receive			:NEAR
+  30  0000              EXTERN  _hijack_Send			:NEAR
+  31  0000              EXTERN  _hijack_init			:NEAR
+  32  0000              
+  33  0000              EXTERN	hijack_Receive_DataH	:BYTE
+  34  0000              EXTERN	hijack_Receive_DataL	:BYTE
+  35  0000              EXTERN	hijack_Send_Data_High	:BYTE
+  36  0000              EXTERN	hijack_Send_Data_Low	:BYTE
+  37  0000              EXTERN	IIC_Receive_Data 		:BYTE
+  38  0000              EXTERN	IIC_Send_Data 			:BYTE
+  39  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  40  0000              ;@------------------------Library API------------------------------@
+  41  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  42  0000              public	F_EMI
+  43  0000              public	R_ATEMP
+  44  0000              public  R_STATUS
+  45  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  46  0000              ;@-----------------------------DATA--------------------------------@
+  47  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+  48  0000              ds	.section	'data'    
+  49  0000  00          F_EMI					DBIT
+"File: main.asm      Assembler  Version 2.93      Page 2
+
+  50  0001  00          R_ATEMP					DB	?
+  51  0002  00          R_STATUS				DB	?
+  52  0003              
+  53  0003              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  54  0003              ;@-----------------------------CODE--------------------------------@
+  55  0003              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  56  0000              cs	.section	at  000h	'code'
+  57  0000                      ORG     START_VECTOR
+  58  0000  3A8A                SNZ     TO
+  59  0001  2819                JMP     POWER_ON
+  60  0002  2828                JMP     MAIN
+  61  0003              ;ISR VECTOR Defination
+  62  0003                      ORG     INT0_VECTOR
+  63  0004  2800     E          JMP		_IIC_INT_ISR		;IIC從機子程序
+  64  0005  0004                RETI
+  65  0006              ;
+  66  0006                      ORG		Timebase0_VECTOR 
+  67  0008  0004                RETI
+  68  0009              ;
+  69  0009              		ORG		Timebase1_VECTOR
+  70  000C  0004        		RETI
+  71  000D              ;
+  72  000D              		ORG		M_FUNCTION0_VECTOR
+  73  0010  2800     E  		JMP		_hijack_Receive
+  74  0011  0004        		RETI
+  75  0012              ;
+  76  0012              		ORG		EEPROM_VECTOR
+  77  0014  0004        		RETI
+  78  0015              ;
+  79  0015              		ORG		ADC_VECTOR
+  80  0018  0004        		RETI
+  81  0019              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  82  0019              					;---------Power ON-------------;
+  83  0019              POWER_ON:
+  84  0019  2000     E  		CALL	_CLEAR_RAM
+  85  001A  2000     E  		CALL	_INIT_PORT
+  86  001B  2000     E  		CALL	_INIT_WDT
+  87  001C  2000     E  		CALL	_INIT_SysFrequency
+  88  001D  2000     E  		CALL	_INIT_LVD
+  89  001E  2000     E  		CALL	_IIC_init
+  90  001F  2000     E  		CALL	_hijack_init
+  91  0020  0F00        		MOV		A,000H
+  92  0021  0080     E  		MOV		IIC_Send_Data,A
+  93  0022  3595        		CLR		PAC3
+  94  0023  3194        		SET		PA3
+  95  0024  0FA5        		MOV		A,0A5H
+  96  0025  0080     E  		MOV		hijack_Send_Data_High,A
+  97  0026  0F5A        		MOV		A,05AH
+  98  0027  0080     E  		MOV		hijack_Send_Data_Low,A
+  99  0028              		
+ 100  0028              MAIN:
+ 101  0028              
+ 102  0028  0001        		CLR		WDT
+ 103  0029  0001        		CLR		WDT1
+ 104  002A  0005        		CLR		WDT2
+ 105  002B  0000        		NOP
+ 106  002C  340E        		CLR		EMI
+ 107  002D  2000     E  		CALL	_hijack_Send
+ 108  002E              	
+ 109  002E  2828        		JMP		MAIN
+"File: main.asm      Assembler  Version 2.93      Page 3
+
+ 110  002F              
+ 111  002F              
+
+
+        0 Errors, 0 Warnings

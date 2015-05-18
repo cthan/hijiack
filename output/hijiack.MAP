@@ -17,7 +17,7 @@ Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x
      00h     0000h     002eh    002fh      CODE               CS (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ)
      00h     002fh     004dh    001fh      CODE               OLDMAIN (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\SYSYINIT.OBJ)
      00h     004eh     00c4h    0077h      CODE               IIC_SLAVE_CODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
-     00h     00c5h     0269h    01a5h      CODE               HIJACK_CODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
+     00h     00c5h     026ah    01a6h      CODE               HIJACK_CODE (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
      00h     0040h     0042h    0003h      DATA     4         DS (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\MAIN.OBJ)
      00h     0043h     0049h    0007h      DATA     4.5714    IIC_SLAVE_DATAL (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\IIC_SLAVE.OBJ)
      00h     004ah     0060h    0017h      DATA     6.7826    HIJACK_DATAL (E:\Doing\0 音頻口通信\ASSP MCU\hijiack\output\HIJACK.OBJ)
@@ -67,8 +67,8 @@ Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x
      0041h              R_ATEMP
      0042h              R_STATUS
      002fh              _CLEAR_RAM
-     01eeh              _HIJACK_INIT
-     00e0h              _HIJACK_RECEIVE
+     01efh              _HIJACK_INIT
+     00e1h              _HIJACK_RECEIVE
      00c5h              _HIJACK_SEND
      00bbh              _IIC_INIT
      004eh              _IIC_INT_ISR
@@ -94,14 +94,14 @@ Input Library File: C:\Program Files\Holtek MCU Development Tools\HT-IDE3000V7.x
      004eh              _IIC_INT_ISR
      00bbh              _IIC_INIT
      00c5h              _HIJACK_SEND
-     00e0h              _HIJACK_RECEIVE
-     01eeh              _HIJACK_INIT
+     00e1h              _HIJACK_RECEIVE
+     01efh              _HIJACK_INIT
      0040h[0]           F_EMI
 
 
 ROM Usage Statistics
      Size      Used     Percentage
-     0400h     026ah    60%
+     0400h     026bh    60%
 
 RAM Usage Statistics
     Bank      Size      Used     Percentage

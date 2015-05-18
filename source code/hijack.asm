@@ -103,6 +103,7 @@ $2:
  		CLR		hijack_temp_count2		;作為奇偶校驗位計數
 		MOV		A,hijack_Send_Data_High
 		MOV		hijack_temp_Byte,A
+		CALL	_hijack_Send_Byte
 		MOV		A,hijack_Send_Data_Low
 		MOV		hijack_temp_Byte,A		
 		CALL	_hijack_Send_Byte

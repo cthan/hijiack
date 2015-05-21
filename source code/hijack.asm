@@ -146,7 +146,6 @@ hijack_Rx_Mode:
 		
 		SNZ		F_hijack_Rx_Error
 		JMP		_hijack_Receive_RET
-		CLR		Hijack_RxOk_Flag
 		CLR		F_First_CCRA
 		CLR		F_hijack_Rx_Error
 		CLR		TEST_COUNT
@@ -169,7 +168,7 @@ hijack_Normal_Mode:
 		XORM	A,PA
 		CLR		STMA0F		
 		SET		F_First_CCRA
-		CLR		Hijack_RxOk_Flag
+;		CLR		Hijack_RxOk_Flag
 		CLR		hijack_CCRP_count	
 		MOV		A,STM0AH					;Save CCRA value
 		MOV		high_CCRA1_H,A	;

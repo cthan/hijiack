@@ -106,13 +106,13 @@ POWER_ON:
 		
 MAIN:
 ;單純測試hijack發送到手機上
-;		CLR		WDT
-;		CLR		WDT1
-;		CLR		WDT2
-;		
-;		CALL	_hijack_Send
-;		INC		hijack_Send_Data_Low
-;		JMP		Main
+		CLR		WDT
+		CLR		WDT1
+		CLR		WDT2
+		CLR		EMI
+		CALL	_hijack_Send
+		INC		hijack_Send_Data_Low
+		JMP		Main
 
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;判斷進入IIC中斷前SDA的狀態，用於判斷Start信號和stop信號		

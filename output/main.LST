@@ -121,68 +121,68 @@
  106  0028              		
  107  0028              MAIN:
  108  0028              ;單純測試hijack發送到手機上
- 109  0028              ;		CLR		WDT
+ 109  0028  0001        		CLR		WDT
 "File: main.asm      Assembler  Version 2.93      Page 3
 
- 110  0028              ;		CLR		WDT1
- 111  0028              ;		CLR		WDT2
- 112  0028              ;		
- 113  0028              ;		CALL	_hijack_Send
- 114  0028              ;		INC		hijack_Send_Data_Low
- 115  0028              ;		JMP		Main
- 116  0028              
- 117  0028              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
- 118  0028              ;判斷進入IIC中斷前SDA的狀態，用於判斷Start信號和stop信號		
- 119  0028  3295        		SET		IIC_SDA_IO
- 120  0029  3A94        		SNZ		IIC_SDA
- 121  002A  282E        		JMP		SDA_LOW0
- 122  002B  282C        		JMP		SDA_High0
- 123  002C              SDA_High0:
- 124  002C  3000     R  		SET		Flag_SDA_Status
- 125  002D  282F        		JMP		Main_LOOP
- 126  002E              SDA_LOW0:
- 127  002E  3400     R  		CLR		Flag_SDA_Status
- 128  002F              Main_LOOP:		
- 129  002F  0001        		CLR		WDT
- 130  0030  0001        		CLR		WDT1
- 131  0031  0005        		CLR		WDT2
- 132  0032              ;IIC接收成功，將數據用hijack發送出去			
- 133  0032  3C00     E  		SZ		IIC_RXok_Flag
- 134  0033  283D        		JMP		Movedata2Hijack	
- 135  0034              ;hijack接收成功，將數據發送IIC中，提供給主機讀取		
- 136  0034  3C00     E  		SZ		Hijack_RxOk_Flag
- 137  0035  2837        		JMP		Movedata2IIC
- 138  0036  2828        		JMP		MAIN
- 139  0037              		
- 140  0037              Movedata2IIC:
- 141  0037  3400     E  		CLR		Hijack_RxOk_Flag
- 142  0038  0700     E  		MOV		A,hijack_Receive_DataH
- 143  0039  0080     E  		MOV		IIC_Send_Data_High,A
- 144  003A  0700     E  		MOV		A,hijack_Receive_DataL
- 145  003B  0080     E  		MOV		IIC_Send_Data_Low,A
- 146  003C  2828        		JMP		MAIN
- 147  003D              Movedata2Hijack:
- 148  003D  3400     E  		CLR		IIC_RXok_Flag
- 149  003E  0700     E  		MOV		A,IIC_Receive_Data_High
- 150  003F  0080     E  		MOV		hijack_Send_Data_High,A
- 151  0040  0700     E  		MOV		A,IIC_Receive_Data_Low
- 152  0041  0080     E  		MOV		hijack_Send_Data_Low,A
- 153  0042  2000     E  		CALL	_hijack_Send
- 154  0043  2828        		JMP		MAIN
- 155  0044              		
- 156  0044              		
- 157  0044              ;Read_SDA_Status	PROC
- 158  0044              ;		SET		IIC_SDA_IO
- 159  0044              ;		SNZ		IIC_SDA
- 160  0044              ;		JMP		SDA_LOW
- 161  0044              ;		JMP		SDA_High
- 162  0044              ;SDA_High:
- 163  0044              ;		SET		Flag_SDA_Status
- 164  0044              ;		RET
- 165  0044              ;SDA_LOW:
- 166  0044              ;		CLR		Flag_SDA_Status
- 167  0044              ;		RET
- 168  0044              ;Read_SDA_Status	ENDP		
+ 110  0029  0001        		CLR		WDT1
+ 111  002A  0005        		CLR		WDT2
+ 112  002B  340E        		CLR		EMI
+ 113  002C  2000     E  		CALL	_hijack_Send
+ 114  002D  1480     E  		INC		hijack_Send_Data_Low
+ 115  002E  2828        		JMP		Main
+ 116  002F              
+ 117  002F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 118  002F              ;判斷進入IIC中斷前SDA的狀態，用於判斷Start信號和stop信號		
+ 119  002F  3295        		SET		IIC_SDA_IO
+ 120  0030  3A94        		SNZ		IIC_SDA
+ 121  0031  2835        		JMP		SDA_LOW0
+ 122  0032  2833        		JMP		SDA_High0
+ 123  0033              SDA_High0:
+ 124  0033  3000     R  		SET		Flag_SDA_Status
+ 125  0034  2836        		JMP		Main_LOOP
+ 126  0035              SDA_LOW0:
+ 127  0035  3400     R  		CLR		Flag_SDA_Status
+ 128  0036              Main_LOOP:		
+ 129  0036  0001        		CLR		WDT
+ 130  0037  0001        		CLR		WDT1
+ 131  0038  0005        		CLR		WDT2
+ 132  0039              ;IIC接收成功，將數據用hijack發送出去			
+ 133  0039  3C00     E  		SZ		IIC_RXok_Flag
+ 134  003A  2844        		JMP		Movedata2Hijack	
+ 135  003B              ;hijack接收成功，將數據發送IIC中，提供給主機讀取		
+ 136  003B  3C00     E  		SZ		Hijack_RxOk_Flag
+ 137  003C  283E        		JMP		Movedata2IIC
+ 138  003D  2828        		JMP		MAIN
+ 139  003E              		
+ 140  003E              Movedata2IIC:
+ 141  003E  3400     E  		CLR		Hijack_RxOk_Flag
+ 142  003F  0700     E  		MOV		A,hijack_Receive_DataH
+ 143  0040  0080     E  		MOV		IIC_Send_Data_High,A
+ 144  0041  0700     E  		MOV		A,hijack_Receive_DataL
+ 145  0042  0080     E  		MOV		IIC_Send_Data_Low,A
+ 146  0043  2828        		JMP		MAIN
+ 147  0044              Movedata2Hijack:
+ 148  0044  3400     E  		CLR		IIC_RXok_Flag
+ 149  0045  0700     E  		MOV		A,IIC_Receive_Data_High
+ 150  0046  0080     E  		MOV		hijack_Send_Data_High,A
+ 151  0047  0700     E  		MOV		A,IIC_Receive_Data_Low
+ 152  0048  0080     E  		MOV		hijack_Send_Data_Low,A
+ 153  0049  2000     E  		CALL	_hijack_Send
+ 154  004A  2828        		JMP		MAIN
+ 155  004B              		
+ 156  004B              		
+ 157  004B              ;Read_SDA_Status	PROC
+ 158  004B              ;		SET		IIC_SDA_IO
+ 159  004B              ;		SNZ		IIC_SDA
+ 160  004B              ;		JMP		SDA_LOW
+ 161  004B              ;		JMP		SDA_High
+ 162  004B              ;SDA_High:
+ 163  004B              ;		SET		Flag_SDA_Status
+ 164  004B              ;		RET
+ 165  004B              ;SDA_LOW:
+ 166  004B              ;		CLR		Flag_SDA_Status
+ 167  004B              ;		RET
+ 168  004B              ;Read_SDA_Status	ENDP		
 
 "File: main.asm      Assembler  Version 2.93      Page 4
 

@@ -14,19 +14,23 @@
 ;___________________________________________________________________
 include config.inc
 include target.inc
+;include IICSlave.inc
 
-#define IIC_Device_Addr_Default 028H
-#define IIC_Time_Out_Count		200
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@---------------------Library API------------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
 EXTERN	R_STATUS 			:BYTE
 EXTERN	R_ATEMP 			:BYTE
+EXTERN	Flag_SDA_Status		:BIT
 
 Public 	_IIC_INT_ISR
-public  IIC_Receive_Data
-public	IIC_Send_Data
+public  IIC_Receive_Data_High
+public	IIC_Receive_Data_Low
+public	IIC_Send_Data_High
+public	IIC_Send_Data_Low
 public  _IIC_init
+public	IIC_RXok_Flag		
+public	IIC_TXok_Flag		
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@------------------------------DATA----------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -34,13 +38,15 @@ rambank 0  IIC_Slave_datal
 IIC_Slave_datal	.section	'data'   
 
 IIC_Device_Addr			DB	?
-IIC_Receive_Data		DB	?
-IIC_Send_Data			DB	?
+IIC_Receive_Data_High	DB	?
+IIC_Receive_Data_Low	DB	?
+IIC_Send_Data_High		DB	?
+IIC_Send_Data_Low		DB	?
 IIC_temp_conunt1		DB	?
 IIC_temp_conunt2		DB	?
 IIC_temp_BYTE			DB	?
-IIC_temp_Flag			DBIT
-
+IIC_RXok_Flag			DBIT
+IIC_TXok_Flag			DBIT
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@-------------------------------CODE---------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -49,10 +55,21 @@ IIC_Slave_code	.section	'code'
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
  _IIC_INT_ISR PROC
  		PUSH
- 		CLR		INTE
+ 		CLR		INTE 		
+		SNZ		Flag_SDA_Status
+		JMP		_IIC_RET
+		CLR		Flag_SDA_Status
 ;判斷是否為有效start信號
 		SNZ		IIC_SCL		
 		JMP		_IIC_RET				;SDA下降沿的時候，SCL為low，不是IIC start信號
+		MOV		A,IIC_Time_Out_Count
+		MOV		IIC_temp_conunt2,A
+$1:					
+		SNZ		IIC_SCL				;SCL高電平就等待
+		JMP		$2
+		SDZ		IIC_temp_conunt2
+		JMP		$1
+$2:		
 ;讀取Device address
 		CALL	_IIC_Read_BYTEData		;讀取IIC 主機發送過來的設備地址
 Device_Addr_Judge:	;判斷地址是否匹配
@@ -72,25 +89,35 @@ Device_Addr_Judge:	;判斷地址是否匹配
 		JMP		IIC_Master_Read			;主機需要讀取數據
 		JMP		IIC_Master_Write		;主機需要寫入數據
 IIC_Master_Read:
-		MOV		A,IIC_Send_Data
+		MOV		A,IIC_Send_Data_High
 		MOV		IIC_temp_BYTE,A
 		CALL	_IIC_Write_BYTEData
-;TEST START
-TEST:;20150423
-		INC		IIC_Send_Data
-;TEST END
-;目前就完成單個字節的讀寫操作
-		JMP		_IIC_RET
+		CALL	IIC_Ack					;收到1byte數據，ACK應答
+		MOV		A,IIC_Send_Data_High
+		MOV		IIC_temp_BYTE,A
+		CALL	_IIC_Write_BYTEData		
+		JMP		_IIC_Tx_OK_RET
+	
 IIC_Master_Write:		
 		CALL	_IIC_Read_BYTEData
 		MOV		A,IIC_temp_BYTE
-		MOV		IIC_Receive_Data,A
-;;目前就完成單個字節的讀寫操作
+		MOV		IIC_Receive_Data_High,A
+;修改為雙字節
+		CALL	IIC_Ack					;收到1byte數據，ACK應答		
+		CALL	_IIC_Read_BYTEData
+		MOV		A,IIC_temp_BYTE
+		MOV		IIC_Receive_Data_Low,A
+		JMP		_IIC_Rx_Ok_RET
+		
+_IIC_Tx_OK_RET:
+		SET		IIC_TXok_Flag
+		JMP		_IIC_RET
+_IIC_Rx_Ok_RET:
+		SET		IIC_RXok_Flag
 		JMP		_IIC_RET
 _IIC_RET:
 		SET		INTE
 		CLR		INTF
-;		SET		EMI
 		POP
 		RETI
 _IIC_INT_ISR ENDP

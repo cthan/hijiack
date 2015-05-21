@@ -15,18 +15,20 @@
 include config.inc
 include target.inc
 include hijack.inc
-;#define IIC_Device_Addr_Default 0A0H
+
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@---------------------Library API------------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-EXTERN	F_EMI 		:BIT
+EXTERN	F_EMI 				:BIT
 EXTERN	R_STATUS 			:BYTE
 EXTERN	R_ATEMP 			:BYTE
- 
+EXTERN	IIC_RXok_Flag		:BIT
+
 public  _hijack_init
 Public 	_hijack_Receive
 public  _hijack_Send
 
+public	Hijack_RxOk_Flag
 public	hijack_Send_Data_High
 public	hijack_Send_Data_Low
 public	hijack_Receive_DataH
@@ -73,6 +75,10 @@ F_Parity_StopMode			DBIT
 F_Parity_Ok					DBIT
 F_Stop_idleMode				DBIT
 F_First_Parity_StopMode		DBIT
+
+Hijack_RxOk_Flag			DBIT
+
+
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@-------------------------------CODE---------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -80,6 +86,7 @@ hijack_code	.section	'code'
 
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 _hijack_Send PROC
+		CLR		IIC_RXok_Flag
 		CLR		IIC_SCL_IO;
 		CLR		IIC_SCL		;hijack發送數據的時候拉低SCL，不接收IICdata
 		SNZ		EMI
@@ -117,6 +124,8 @@ $2:
 		JMP		_hijack_Send_RET
 		SET		EMI			;開啟EMI，
 _hijack_Send_RET:
+		SET		IIC_SCL_IO;
+		SET		IIC_SCL		;hijack發送數據的時候拉低SCL，不接收IICdata
 		CLR		F_EMI
 		RET 
 _hijack_Send ENDP
@@ -137,6 +146,7 @@ hijack_Rx_Mode:
 		
 		SNZ		F_hijack_Rx_Error
 		JMP		_hijack_Receive_RET
+		CLR		Hijack_RxOk_Flag
 		CLR		F_First_CCRA
 		CLR		F_hijack_Rx_Error
 		CLR		TEST_COUNT
@@ -159,6 +169,7 @@ hijack_Normal_Mode:
 		XORM	A,PA
 		CLR		STMA0F		
 		SET		F_First_CCRA
+		CLR		Hijack_RxOk_Flag
 		CLR		hijack_CCRP_count	
 		MOV		A,STM0AH					;Save CCRA value
 		MOV		high_CCRA1_H,A	;
@@ -210,8 +221,9 @@ Stop_Deal:
 		SNZ		F_0or1Bit
 		JMP		_hijack_Parity_StopMode_Error
 		SET		F_Stop_idleMode
-		MOV		A,3
+		MOV		A,2
 		MOV		hijack_Idle_Count,A
+		CLR		TEST_COUNT
 		CLR		F_Parity_StopMode				
 		JMP		_hijack_Parity_StopMode_RET
 _hijack_Parity_StopMode_Error:
@@ -271,16 +283,16 @@ _hijack_ENDIdleMode PROC
 		SDZ		hijack_Idle_Count
 		JMP		$1
 $0:		
-		SZ		F_0or1Bit
-		
-		CLR		F_IdleMode
-		SET		F_ByteMode
+		SNZ		F_0or1Bit
+		JMP		$2		
+		CLR		F_Stop_idleMode
+		CLR		F_hijack_Rx_Start
+		SET		Hijack_RxOk_Flag
 		RET
 $2:		
 		SET		F_hijack_Rx_Error	;第四bit 還是1，錯誤
 		RET
 $1:		
-
 		SZ		F_0or1Bit		
 		RET						
 		SET		F_hijack_Rx_Error	;3bit 1 Idle 不夠

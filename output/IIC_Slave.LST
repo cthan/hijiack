@@ -1,0 +1,273 @@
+"File: IIC_Slave.asm  Assembler  Version 2.93      Page 1
+
+
+   1  0000              ;___________________________________________________________________
+   2  0000              ;___________________________________________________________________
+   3  0000              ;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+   4  0000              ;File Name :    sysinit.asm
+   5  0000              ;Targer :       hijack TEST Board
+   6  0000              ;MCU :          HT68F002
+   7  0000              ;Version :      V00
+   8  0000              ;Author :       ChenTing
+   9  0000              ;Date :         2015/04/10
+  10  0000              ;Description :  音頻通信程序測試
+  11  0000              ;				IIC_Slave程序
+  12  0000              ;History : 
+  13  0000              ;___________________________________________________________________
+  14  0000              ;___________________________________________________________________
+  15  0000              include config.inc
+
+
+
+
+
+
+  16  0000              include target.inc
+
+
+  17  0000              ;include IICSlave.inc
+  18  0000              
+  19  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  20  0000              ;@---------------------Library API------------------------------@
+  21  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+  22  0000              EXTERN	R_STATUS 			:BYTE
+  23  0000              EXTERN	R_ATEMP 			:BYTE
+  24  0000              EXTERN	Flag_SDA_Status		:BIT
+  25  0000              
+  26  0000              Public 	_IIC_INT_ISR
+  27  0000              public  IIC_Receive_Data_High
+  28  0000              public	IIC_Receive_Data_Low
+  29  0000              public	IIC_Send_Data_High
+  30  0000              public	IIC_Send_Data_Low
+  31  0000              public  _IIC_init
+  32  0000              public	IIC_RXok_Flag		
+  33  0000              public	IIC_TXok_Flag		
+  34  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  35  0000              ;@------------------------------DATA----------------------------@
+  36  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  37  0000              rambank 0  IIC_Slave_datal
+  38  0000              IIC_Slave_datal	.section	'data'   
+  39  0000              
+  40  0000  00          IIC_Device_Addr			DB	?
+  41  0001  00          IIC_Receive_Data_High	DB	?
+  42  0002  00          IIC_Receive_Data_Low	DB	?
+  43  0003  00          IIC_Send_Data_High		DB	?
+  44  0004  00          IIC_Send_Data_Low		DB	?
+  45  0005  00          IIC_temp_conunt1		DB	?
+  46  0006  00          IIC_temp_conunt2		DB	?
+  47  0007  00          IIC_temp_BYTE			DB	?
+  48  0008  00          IIC_RXok_Flag			DBIT
+  49  0008              IIC_TXok_Flag			DBIT
+  50  0009              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  51  0009              ;@-------------------------------CODE---------------------------@
+"File: IIC_Slave.asm  Assembler  Version 2.93      Page 2
+
+  52  0009              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  53  0000              IIC_Slave_code	.section	'code' 
+  54  0000              
+  55  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  56  0000               _IIC_INT_ISR PROC
+  57  0000               		PUSH
+  58  0003  348E         		CLR		INTE 		
+  59  0004  3800     E  		SNZ		Flag_SDA_Status
+  60  0005  2800     R  		JMP		_IIC_RET
+  61  0006  3400     E  		CLR		Flag_SDA_Status
+  62  0007              ;判斷是否為有效start信號
+  63  0007  3A14        		SNZ		IIC_SCL		
+  64  0008  2800     R  		JMP		_IIC_RET				;SDA下降沿的時候，SCL為low，不是IIC start信號
+  65  0009  0FC8        		MOV		A,IIC_Time_Out_Count
+  66  000A  0080     R  		MOV		IIC_temp_conunt2,A
+  67  000B              $1:					
+  68  000B  3A14        		SNZ		IIC_SCL				;SCL高電平就等待
+  69  000C  2800     R  		JMP		$2
+  70  000D  1780     R  		SDZ		IIC_temp_conunt2
+  71  000E  2800     R  		JMP		$1
+  72  000F              $2:		
+  73  000F              ;讀取Device address
+  74  000F  2000     R  		CALL	_IIC_Read_BYTEData		;讀取IIC 主機發送過來的設備地址
+  75  0010              Device_Addr_Judge:	;判斷地址是否匹配
+  76  0010  0700     R  		MOV		A,IIC_temp_BYTE
+  77  0011  0080     R  		MOV		IIC_Device_Addr,A
+  78  0012  0FFE        		MOV		A,0feH					;取出地址數據		
+  79  0013  0600     R  		AND		A,IIC_Device_Addr
+  80  0014  0C28        		XOR		A,IIC_Device_Addr_Default
+  81  0015  390A        		SNZ		Z
+  82  0016  2800     R  		JMP		_IIC_RET				;地址不匹配，則退出
+  83  0017              ;地址匹配，發送ACK給主機
+  84  0017  2000     R  		CALL	IIC_Ack					;收到設備地址，對設備地址ACK應答		
+  85  0018              ;地址匹配，判斷主機需要讀取數據還是寫入數據
+  86  0018  0F01        		MOV		A,01H					;取出地址數據		
+  87  0019  0600     R  		AND		A,IIC_Device_Addr
+  88  001A  1085        		SZ		ACC
+  89  001B  2800     R  		JMP		IIC_Master_Read			;主機需要讀取數據
+  90  001C  2800     R  		JMP		IIC_Master_Write		;主機需要寫入數據
+  91  001D              IIC_Master_Read:
+  92  001D  0700     R  		MOV		A,IIC_Send_Data_High
+  93  001E  0080     R  		MOV		IIC_temp_BYTE,A
+  94  001F  2000     R  		CALL	_IIC_Write_BYTEData
+  95  0020  2000     R  		CALL	IIC_Ack					;收到1byte數據，ACK應答
+  96  0021  0700     R  		MOV		A,IIC_Send_Data_High
+  97  0022  0080     R  		MOV		IIC_temp_BYTE,A
+  98  0023  2000     R  		CALL	_IIC_Write_BYTEData		
+  99  0024  2800     R  		JMP		_IIC_Tx_OK_RET
+ 100  0025              	
+ 101  0025              IIC_Master_Write:		
+ 102  0025  2000     R  		CALL	_IIC_Read_BYTEData
+ 103  0026  0700     R  		MOV		A,IIC_temp_BYTE
+ 104  0027  0080     R  		MOV		IIC_Receive_Data_High,A
+ 105  0028              ;修改為雙字節
+ 106  0028  2000     R  		CALL	IIC_Ack					;收到1byte數據，ACK應答		
+ 107  0029  2000     R  		CALL	_IIC_Read_BYTEData
+ 108  002A  0700     R  		MOV		A,IIC_temp_BYTE
+ 109  002B  0080     R  		MOV		IIC_Receive_Data_Low,A
+ 110  002C  2800     R  		JMP		_IIC_Rx_Ok_RET
+ 111  002D              		
+"File: IIC_Slave.asm  Assembler  Version 2.93      Page 3
+
+ 112  002D              _IIC_Tx_OK_RET:
+ 113  002D  3000     R  		SET		IIC_TXok_Flag
+ 114  002E  2800     R  		JMP		_IIC_RET
+ 115  002F              _IIC_Rx_Ok_RET:
+ 116  002F  3000     R  		SET		IIC_RXok_Flag
+ 117  0030  2800     R  		JMP		_IIC_RET
+ 118  0031              _IIC_RET:
+ 119  0031  308E        		SET		INTE
+ 120  0032  360E        		CLR		INTF
+ 121  0033              		POP
+ 122  0036  0004        		RETI
+ 123  0037              _IIC_INT_ISR ENDP
+ 124  0037              
+ 125  0037              
+ 126  0037              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+ 127  0037              _IIC_Read_BYTEData PROC
+ 128  0037  3295        		SET		IIC_SDA_IO
+ 129  0038  0F09        		MOV 	A,9 				;SET 8 BIT COUNTER
+ 130  0039  0080     R  		MOV 	IIC_temp_conunt1,A	
+ 131  003A  1F00     R  		CLR		IIC_temp_BYTE
+ 132  003B              IIC_Read_LOOP:	
+ 133  003B  1780     R  		SDZ 	IIC_temp_conunt1 	;8bit值是否已經讀取完成
+ 134  003C  2800     R  		JMP		IIC_Read_BYTEData_LOOP
+ 135  003D  0003        		RET
+ 136  003E              IIC_Read_BYTEData_LOOP:	
+ 137  003E  1880     R  		RL	 	IIC_temp_BYTE		;高位在前
+ 138  003F  0FC8        		MOV		A,IIC_Time_Out_Count;config time out value
+ 139  0040  0080     R  		MOV		IIC_temp_conunt2,A		
+ 140  0041              $1:						
+ 141  0041  3E14        		SZ		IIC_SCL				;SCL低電平狀態就等待
+ 142  0042  2800     R  		JMP		$2
+ 143  0043  1780     R  		SDZ		IIC_temp_conunt2
+ 144  0044  2800     R  		JMP		$1
+ 145  0045  0003        		RET
+ 146  0046              $2:					
+ 147  0046  3A94        		SNZ		IIC_SDA				;讀取到來的data值
+ 148  0047  2800     R  		JMP		SDA_LOW0
+ 149  0048  2800     R  		JMP		SDA_HIGH0
+ 150  0049              SDA_HIGH0:
+ 151  0049  3000     R  		SET		IIC_temp_BYTE.0
+ 152  004A  2800     R  		JMP		IIC_Read_Next					
+ 153  004B              SDA_LOW0:
+ 154  004B  3400     R  		CLR		IIC_temp_BYTE.0
+ 155  004C              IIC_Read_Next:		
+ 156  004C  0FC8        		MOV		A,IIC_Time_Out_Count
+ 157  004D  0080     R  		MOV		IIC_temp_conunt2,A
+ 158  004E              $1:					
+ 159  004E  3A14        		SNZ		IIC_SCL				;SCL高電平就等待
+ 160  004F  2800     R  		JMP		IIC_Read_LOOP
+ 161  0050  1780     R  		SDZ		IIC_temp_conunt2
+ 162  0051  2800     R  		JMP		$1		
+ 163  0052  0003        		RET	
+ 164  0053              _IIC_Read_BYTEData ENDP
+ 165  0053              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 166  0053              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+ 167  0053              _IIC_Write_BYTEData PROC
+ 168  0053  3695        		CLR		IIC_SDA_IO
+ 169  0054  0F08        		MOV 	A,8 ;SET 8 BIT COUNTER
+ 170  0055  0080     R  		MOV 	IIC_temp_conunt1,A
+ 171  0056  0FC8        		MOV		A,IIC_Time_Out_Count
+"File: IIC_Slave.asm  Assembler  Version 2.93      Page 4
+
+ 172  0057  0080     R  		MOV		IIC_temp_conunt2,A						
+ 173  0058              IIC_Write_BYTEData_LOOP:
+ 174  0058  3E14        		SZ		IIC_SCL				;SCL低電平狀態就等待
+ 175  0059  2800     R  		JMP		$2
+ 176  005A  1780     R  		SDZ		IIC_temp_conunt2
+ 177  005B  2800     R  		JMP		IIC_Write_BYTEData_LOOP
+ 178  005C  0003        		RET
+ 179  005D              $2:			
+ 180  005D              ;		MOV		A,80H				;取出地址數據		
+ 181  005D              ;		AND		A,IIC_temp_BYTE
+ 182  005D              ;		SZ		ACC
+ 183  005D  3C00     R  		SZ		IIC_temp_BYTE.7
+ 184  005E  2800     R  		JMP		SDA_HIGH1
+ 185  005F  2800     R  		JMP		SDA_LOW1
+ 186  0060              SDA_HIGH1:
+ 187  0060  3294        		SET		IIC_SDA
+ 188  0061  2800     R  		JMP		Write_Next_Bit
+ 189  0062              SDA_LOW1:
+ 190  0062  3694        		CLR		IIC_SDA
+ 191  0063              Write_Next_Bit:
+ 192  0063  0FC8        		MOV		A,IIC_Time_Out_Count
+ 193  0064  0080     R  		MOV		IIC_temp_conunt2,A	
+ 194  0065              $2:					
+ 195  0065  3A14        		SNZ		IIC_SCL				;SCL高電平就等待
+ 196  0066  2800     R  		JMP		$1
+ 197  0067  1780     R  		SDZ		IIC_temp_conunt2
+ 198  0068  2800     R  		JMP		$2
+ 199  0069  0003        		RET		
+ 200  006A              $1:		
+ 201  006A              ;		SET		IIC_SDA_IO				;讓出數據線
+ 202  006A  1880     R  		RL		IIC_temp_BYTE
+ 203  006B  1780     R  		SDZ 	IIC_temp_conunt1 	;8bit值是否已經讀取完成
+ 204  006C  2800     R  		JMP		IIC_Write_BYTEData_LOOP
+ 205  006D  3295        		SET		IIC_SDA_IO				;讓出數據線
+ 206  006E  0003        		RET	
+ 207  006F              _IIC_Write_BYTEData ENDP
+ 208  006F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 209  006F              IIC_Ack PROC
+ 210  006F              ;應答信號，保證在兩個時鐘條邊沿SDA為低，則主機認為是從機應答
+ 211  006F  3695        		CLR		IIC_SDA_IO			;config SDA output
+ 212  0070  0FC8        		MOV		A,IIC_Time_Out_Count
+ 213  0071  0080     R  		MOV		IIC_temp_conunt2,A
+ 214  0072              $1:
+ 215  0072  3E14        		SZ		IIC_SCL				;低電平就等待
+ 216  0073  2800     R  		JMP		$2
+ 217  0074  1780     R  		SDZ		IIC_temp_conunt2
+ 218  0075  2800     R  		JMP		$1
+ 219  0076  0003        		RET
+ 220  0077              $2:			
+ 221  0077  3694        		CLR		IIC_SDA		;第9個CLK變高的情況下，SDA輸出0
+ 222  0078  0FC8        		MOV		A,IIC_Time_Out_Count
+ 223  0079  0080     R  		MOV		IIC_temp_conunt2,A
+ 224  007A              $3:				
+ 225  007A  3A14        		SNZ		IIC_SCL
+ 226  007B  2800     R  		JMP		$4
+ 227  007C  1780     R  		SDZ		IIC_temp_conunt2
+ 228  007D  2800     R  		JMP		$3
+ 229  007E  0003        		RET
+ 230  007F              $4:				
+ 231  007F  3295        		SET		IIC_SDA_IO		;第9個CLK變低的情況下，釋放總線
+"File: IIC_Slave.asm  Assembler  Version 2.93      Page 5
+
+ 232  0080  0003        		RET
+ 233  0081              IIC_Ack ENDP
+ 234  0081              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 235  0081              _IIC_init PROC
+ 236  0081  3694        		CLR		IIC_SDA
+ 237  0082  3295        		SET		IIC_SDA_IO		;輸出話IO口設定
+ 238  0083  3215        		SET		IIC_SCL_IO	
+ 239  0084  3614        		CLR		IIC_SCL
+ 240  0085              		
+ 241  0085              
+ 242  0085  0F03        		MOV		A,INT0_Default	;config INT觸發中斷
+ 243  0086  008D        		MOV		INTEG,A
+ 244  0087  360E        		CLR		INTF
+ 245  0088  308E        		SET		INTE
+ 246  0089  300E        		SET		EMI				;使能INT
+ 247  008A              				
+ 248  008A  0003        		RET
+ 249  008B              _IIC_init ENDP
+ 250  008B              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 251  008B              
+
+
+        0 Errors, 0 Warnings

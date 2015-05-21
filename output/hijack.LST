@@ -1,0 +1,668 @@
+"File: hijack.asm    Assembler  Version 2.93      Page 1
+
+
+   1  0000              ;___________________________________________________________________
+   2  0000              ;___________________________________________________________________
+   3  0000              ;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+   4  0000              ;File Name :    hijack.asm
+   5  0000              ;Targer :       hijack TEST Board
+   6  0000              ;MCU :          HT68F002
+   7  0000              ;Version :      V00
+   8  0000              ;Author :       ChenTing
+   9  0000              ;Date :         2015/04/10
+  10  0000              ;Description :  音頻通信程序測試
+  11  0000              ;				音頻通信主要程序
+  12  0000              ;History : 
+  13  0000              ;___________________________________________________________________
+  14  0000              ;___________________________________________________________________
+  15  0000              include config.inc
+
+
+
+
+
+
+  16  0000              include target.inc
+
+
+  17  0000              include hijack.inc
+
+
+  18  0000              
+  19  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  20  0000              ;@---------------------Library API------------------------------@
+  21  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  22  0000              EXTERN	F_EMI 				:BIT
+  23  0000              EXTERN	R_STATUS 			:BYTE
+  24  0000              EXTERN	R_ATEMP 			:BYTE
+  25  0000              EXTERN	IIC_RXok_Flag		:BIT
+  26  0000              
+  27  0000              public  _hijack_init
+  28  0000              Public 	_hijack_Receive
+  29  0000              public  _hijack_Send
+  30  0000              
+  31  0000              public	Hijack_RxOk_Flag
+  32  0000              public	hijack_Send_Data_High
+  33  0000              public	hijack_Send_Data_Low
+  34  0000              public	hijack_Receive_DataH
+  35  0000              public	hijack_Receive_DataL
+  36  0000              
+  37  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  38  0000              ;@------------------------------DATA----------------------------@
+  39  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  40  0000              rambank 0  hijack_datal
+  41  0000              hijack_datal	.section	'data'   
+  42  0000              
+  43  0000  00          hijack_Receive_DataH		DB	?
+  44  0001  00          hijack_Receive_DataL		DB	?
+  45  0002  00          hijack_Send_Data_High		DB	?
+  46  0003  00          hijack_Send_Data_Low		DB	?
+  47  0004  00          hijack_temp_Byte			DB	?
+  48  0005  00          hijack_temp_count1			DB	?
+  49  0006  00          hijack_temp_count2			DB	?
+"File: hijack.asm    Assembler  Version 2.93      Page 2
+
+  50  0007  00          hijack_CCRP_count			DB	?
+  51  0008  00          hijack_Rx_step				DB	?
+  52  0009  00          high_CCRA1_H				DB	?
+  53  000A  00          high_CCRA1_L				DB	?
+  54  000B  00          high_CCRA2_H				DB	?
+  55  000C  00          high_CCRA2_L				DB	?
+  56  000D  00          hijack_Period_H				DB	?
+  57  000E  00          hijack_Period_L				DB	?
+  58  000F  00          TEST_COUNT					DB	?
+  59  0010  00          TEST_COUNT2					DB	?
+  60  0011  00          TEST_COUNT3					DB	?
+  61  0012  00          hijack_Idle_Count			DB	?
+  62  0013  00          hijack_Rx_Count				DB	?
+  63  0014  00          hijack_Rx_Parity_Count		DB	?
+  64  0015              
+  65  0015  00          F_First_CCRA				DBIT
+  66  0015              F_hijack_Rx_Error			DBIT
+  67  0015              F_hijack_Rx_Start			DBIT
+  68  0015              F_CompleteRx1Bit			DBIT
+  69  0015              F_0or1Bit					DBIT
+  70  0015              F_PrepareMode				DBIT
+  71  0015              F_IdleMode					DBIT
+  72  0015              F_ByteMode					DBIT
+  73  0016  00          F_hijackstartOk				DBIT
+  74  0016              F_Parity_StopMode			DBIT
+  75  0016              F_Parity_Ok					DBIT
+  76  0016              F_Stop_idleMode				DBIT
+  77  0016              F_First_Parity_StopMode		DBIT
+  78  0017              
+  79  0016              Hijack_RxOk_Flag			DBIT
+  80  0017              
+  81  0017              
+  82  0017              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  83  0017              ;@-------------------------------CODE---------------------------@
+  84  0017              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  85  0000              hijack_code	.section	'code' 
+  86  0000              
+  87  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  88  0000              _hijack_Send PROC
+  89  0000  3400     E  		CLR		IIC_RXok_Flag
+  90  0001  3615        		CLR		IIC_SCL_IO;
+  91  0002  3614        		CLR		IIC_SCL		;hijack發送數據的時候拉低SCL，不接收IICdata
+  92  0003  380E        		SNZ		EMI
+  93  0004  2800     R  		JMP		$1
+  94  0005  3000     E  		SET		F_EMI
+  95  0006  2800     R  		JMP		$2			
+  96  0007              $1:		
+  97  0007  3400     E  		CLR		F_EMI		
+  98  0008  2800     R  		JMP		$2
+  99  0009              $2:		
+ 100  0009  340E        		CLR		EMI		;關閉總中斷，防止其他程序打斷
+ 101  000A  3515        		CLR		hijack_channel_MIC_IO 
+ 102  000B  3114        		SET		hijack_channel_MIC
+ 103  000C              ;建立Bias信號 12bit 0
+ 104  000C  2000     R  		CALL	_hijack_Send_Bias		
+ 105  000D              ;idel信號     3bit  1
+ 106  000D  2000     R  		CALL	_hijack_Send_Idle
+ 107  000E              ;start信號	  1bit  0
+ 108  000E  2000     R  		CALL	_hijack_Send_Start				
+ 109  000F              ;發送2Byte data + 奇校驗
+"File: hijack.asm    Assembler  Version 2.93      Page 3
+
+ 110  000F  1F00     R   		CLR		hijack_temp_count2		;作為奇偶校驗位計數
+ 111  0010  0700     R  		MOV		A,hijack_Send_Data_High
+ 112  0011  0080     R  		MOV		hijack_temp_Byte,A
+ 113  0012  2000     R  		CALL	_hijack_Send_Byte
+ 114  0013  0700     R  		MOV		A,hijack_Send_Data_Low
+ 115  0014  0080     R  		MOV		hijack_temp_Byte,A		
+ 116  0015  2000     R  		CALL	_hijack_Send_Byte
+ 117  0016              				
+ 118  0016              ;stop信號	  1bit 1
+ 119  0016  2000     R  		CALL	_hijack_Send_Stop
+ 120  0017              ;3bit結束信號
+ 121  0017  2000     R  		CALL	_hijack_Send_Idle
+ 122  0018              
+ 123  0018  3800     E  		SNZ		F_EMI
+ 124  0019  2800     R  		JMP		_hijack_Send_RET
+ 125  001A  300E        		SET		EMI			;開啟EMI，
+ 126  001B              _hijack_Send_RET:
+ 127  001B  3215        		SET		IIC_SCL_IO;
+ 128  001C  3214        		SET		IIC_SCL		;hijack發送數據的時候拉低SCL，不接收IICdata
+ 129  001D  3400     E  		CLR		F_EMI
+ 130  001E  0003        		RET 
+ 131  001F              _hijack_Send ENDP
+ 132  001F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 133  001F              ;						_hijack_Receive	Start							@
+ 134  001F              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 135  001F              _hijack_Receive PROC
+ 136  001F              		PUSH
+ 137  0022  3800     R  		SNZ		F_hijack_Rx_Start
+ 138  0023  2800     R  		JMP		hijack_Normal_Mode
+ 139  0024              hijack_Rx_Mode:		
+ 140  0024  2000     R  		CALL	_hijack_Rx_1Bit		
+ 141  0025  2000     R  		CALL	_hijack_PrepareMode	
+ 142  0026  2000     R  		CALL	_hijack_StartIdleMode		
+ 143  0027  2000     R  		CALL	_hijack_Rx_Byte				
+ 144  0028  2000     R  		CALL	_hijack_Parity_StopMode
+ 145  0029  2000     R  		CALL	_hijack_ENDIdleMode
+ 146  002A              		
+ 147  002A  3800     R  		SNZ		F_hijack_Rx_Error
+ 148  002B  2800     R  		JMP		_hijack_Receive_RET
+ 149  002C  3400     R  		CLR		Hijack_RxOk_Flag
+ 150  002D  3400     R  		CLR		F_First_CCRA
+ 151  002E  3400     R  		CLR		F_hijack_Rx_Error
+ 152  002F  1F00     R  		CLR		TEST_COUNT
+ 153  0030  1F00     R  		CLR		TEST_COUNT2
+ 154  0031  3400     R  		CLR		F_ByteMode
+ 155  0032  3400     R  		CLR		F_CompleteRx1Bit
+ 156  0033  3400     R  		CLR		F_IdleMode
+ 157  0034  3400     R  		CLR		F_PrepareMode
+ 158  0035  3400     R  		CLR		F_hijack_Rx_Start
+ 159  0036  3400     R  		CLR		F_hijackstartOk
+ 160  0037  2800     R  		JMP		_hijack_Receive_RET
+ 161  0038              
+ 162  0038              
+ 163  0038              		
+ 164  0038              hijack_Normal_Mode:	
+ 165  0038  3A91        		SNZ		STMA0F
+ 166  0039  2800     R  		JMP		_hijack_Normal_CCRP_RET	;(not hijack Rx mode)& (not CCRA interrupt) = normal CCRP interrupt
+ 167  003A              ;;第一次進入CCRA中斷，初始化相關設置	init hijack Rx Value
+ 168  003A  0F08        		MOV		A,00001000B
+ 169  003B  0494        		XORM	A,PA
+"File: hijack.asm    Assembler  Version 2.93      Page 4
+
+ 170  003C  3691        		CLR		STMA0F		
+ 171  003D  3000     R  		SET		F_First_CCRA
+ 172  003E  3400     R  		CLR		Hijack_RxOk_Flag
+ 173  003F  1F00     R  		CLR		hijack_CCRP_count	
+ 174  0040  072D        		MOV		A,STM0AH					;Save CCRA value
+ 175  0041  0080     R  		MOV		high_CCRA1_H,A	;
+ 176  0042  072C        		MOV		A,STM0AL					;
+ 177  0043  0080     R  		MOV		high_CCRA1_L,A	;
+ 178  0044  1480     R  		INC		TEST_COUNT3
+ 179  0045  3000     R  		SET		F_hijack_Rx_Start
+ 180  0046  3000     R  		SET		F_PrepareMode
+ 181  0047  0F03        		MOV		A,3
+ 182  0048  0080     R  		MOV		hijack_Idle_Count,A
+ 183  0049  3400     R  		CLR		F_hijack_Rx_Error				
+ 184  004A  2800     R  		JMP		_hijack_Receive_RET			
+ 185  004B              _hijack_Normal_CCRP_RET:
+ 186  004B  3A11        		SNZ		STMP0F					;CCRP_interrupt也不是 CCRP_interrupt中斷，錯誤
+ 187  004C  3000     R  		SET		F_hijack_Rx_Error
+ 188  004D  3611        		CLR		STMP0F		
+ 189  004E              _hijack_Receive_RET:
+ 190  004E              		
+ 191  004E              		POP		
+ 192  0051  0004        		RETI 
+ 193  0052              _hijack_Receive ENDP
+ 194  0052              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 195  0052              ;					_hijack_Receive	End		    						@
+ 196  0052              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 197  0052              _hijack_Parity_StopMode PROC
+ 198  0052  3800     R  		SNZ		F_Parity_StopMode
+ 199  0053  0003        		RET
+ 200  0054  3800     R  		SNZ		F_CompleteRx1Bit
+ 201  0055  0003        		RET
+ 202  0056  3400     R  		CLR		F_CompleteRx1Bit
+ 203  0057              		
+ 204  0057  3C00     R  		SZ		F_Parity_Ok
+ 205  0058  2800     R  		JMP		Stop_Deal					
+ 206  0059  3800     R  		SNZ		hijack_Rx_Parity_Count.0
+ 207  005A  2800     R  		JMP		Paritylow
+ 208  005B  2800     R  		JMP		ParityHigh
+ 209  005C              ParityHigh:	
+ 210  005C  3800     R  		SNZ		F_0or1Bit
+ 211  005D  2800     R  		JMP		_hijack_Parity_StopMode_Error
+ 212  005E  3000     R  		SET		F_Parity_Ok
+ 213  005F  2800     R  		JMP		_hijack_Parity_StopMode_RET					
+ 214  0060              ParityLow:		
+ 215  0060  3C00     R  		SZ		F_0or1Bit
+ 216  0061  2800     R  		JMP		_hijack_Parity_StopMode_Error
+ 217  0062  3000     R  		SET		F_Parity_Ok
+ 218  0063  2800     R  		JMP		_hijack_Parity_StopMode_RET			
+ 219  0064              Stop_Deal:
+ 220  0064  3400     R  		CLR		F_Parity_Ok
+ 221  0065  3800     R  		SNZ		F_0or1Bit
+ 222  0066  2800     R  		JMP		_hijack_Parity_StopMode_Error
+ 223  0067  3000     R  		SET		F_Stop_idleMode
+ 224  0068  0F02        		MOV		A,2
+ 225  0069  0080     R  		MOV		hijack_Idle_Count,A
+ 226  006A  1F00     R  		CLR		TEST_COUNT
+ 227  006B  3400     R  		CLR		F_Parity_StopMode				
+ 228  006C  2800     R  		JMP		_hijack_Parity_StopMode_RET
+ 229  006D              _hijack_Parity_StopMode_Error:
+"File: hijack.asm    Assembler  Version 2.93      Page 5
+
+ 230  006D  3000     R  		SET		F_hijack_Rx_Error
+ 231  006E  0003        		RET	
+ 232  006F              _hijack_Parity_StopMode_RET:			
+ 233  006F  0003        		RET
+ 234  0070              _hijack_Parity_StopMode ENDP
+ 235  0070              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 236  0070              _hijack_PrepareMode PROC
+ 237  0070  3800     R  		SNZ		F_PrepareMode
+ 238  0071  0003        		RET
+ 239  0072  3800     R  		SNZ		F_CompleteRx1Bit
+ 240  0073  0003        		RET
+ 241  0074              ;		INC		TEST_COUNT2
+ 242  0074  3400     R  		CLR		F_CompleteRx1Bit
+ 243  0075              ;Idle		
+ 244  0075  3800     R  		SNZ		F_0or1Bit
+ 245  0076  0003        		RET
+ 246  0077  3400     R  		CLR		F_PrepareMode
+ 247  0078  3000     R  		SET		F_IdleMode
+ 248  0079  0003        		RET
+ 249  007A              _hijack_PrepareMode ENDP
+ 250  007A              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 251  007A              _hijack_StartIdleMode PROC
+ 252  007A  3800     R  		SNZ		F_IdleMode
+ 253  007B  0003        		RET
+ 254  007C              ;Idle		
+ 255  007C  3800     R  		SNZ		F_CompleteRx1Bit
+ 256  007D  0003        		RET
+ 257  007E  3400     R  		CLR		F_CompleteRx1Bit
+ 258  007F  1780     R  		SDZ		hijack_Idle_Count
+ 259  0080  2800     R  		JMP		$1
+ 260  0081              $0:		
+ 261  0081  3C00     R  		SZ		F_0or1Bit
+ 262  0082  2800     R  		JMP		$2
+ 263  0083  3400     R  		CLR		F_IdleMode
+ 264  0084  3000     R  		SET		F_ByteMode
+ 265  0085  0003        		RET
+ 266  0086              $2:		
+ 267  0086  3000     R  		SET		F_hijack_Rx_Error	;第四bit 還是1，錯誤
+ 268  0087  0003        		RET
+ 269  0088              $1:		
+ 270  0088  3C00     R  		SZ		F_0or1Bit		
+ 271  0089  0003        		RET						
+ 272  008A  3000     R  		SET		F_hijack_Rx_Error	;3bit 1 Idle 不夠
+ 273  008B  0003        		RET				
+ 274  008C              _hijack_StartIdleMode ENDP
+ 275  008C              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 276  008C              _hijack_ENDIdleMode PROC
+ 277  008C  3800     R  		SNZ		F_Stop_idleMode
+ 278  008D  0003        		RET
+ 279  008E  3800     R  		SNZ		F_CompleteRx1Bit
+ 280  008F  0003        		RET
+ 281  0090  3400     R  		CLR		F_CompleteRx1Bit
+ 282  0091  1480     R  		INC		TEST_COUNT
+ 283  0092  1780     R  		SDZ		hijack_Idle_Count
+ 284  0093  2800     R  		JMP		$1
+ 285  0094              $0:		
+ 286  0094  3800     R  		SNZ		F_0or1Bit
+ 287  0095  2800     R  		JMP		$2		
+ 288  0096  3400     R  		CLR		F_Stop_idleMode
+ 289  0097  3400     R  		CLR		F_hijack_Rx_Start
+"File: hijack.asm    Assembler  Version 2.93      Page 6
+
+ 290  0098  3000     R  		SET		Hijack_RxOk_Flag
+ 291  0099  0003        		RET
+ 292  009A              $2:		
+ 293  009A  3000     R  		SET		F_hijack_Rx_Error	;第四bit 還是1，錯誤
+ 294  009B  0003        		RET
+ 295  009C              $1:		
+ 296  009C  3C00     R  		SZ		F_0or1Bit		
+ 297  009D  0003        		RET						
+ 298  009E  3000     R  		SET		F_hijack_Rx_Error	;3bit 1 Idle 不夠
+ 299  009F  0003        		RET					
+ 300  00A0              _hijack_ENDIdleMode ENDP
+ 301  00A0              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 302  00A0              _hijack_Rx_Byte PROC
+ 303  00A0  3800     R  		SNZ		F_ByteMode
+ 304  00A1  0003        		RET
+ 305  00A2  3800     R  		SNZ		F_CompleteRx1Bit
+ 306  00A3  0003        		RET
+ 307  00A4  3400     R  		CLR		F_CompleteRx1Bit		
+ 308  00A5  3800     R  		SNZ		F_hijackstartOk
+ 309  00A6  2800     R  		JMP		$0
+ 310  00A7  2800     R  		JMP		hijack_Rx_ByteEnter
+ 311  00A8              $0:
+ 312  00A8  3800     R  		SNZ		F_0or1Bit
+ 313  00A9  2800     R  		JMP		$1
+ 314  00AA  3000     R  		SET		F_hijack_Rx_Error
+ 315  00AB  0003        		RET
+ 316  00AC              $1:
+ 317  00AC  3000     R  		SET		F_hijackstartOk
+ 318  00AD  0F10        		MOV		A,16
+ 319  00AE  0080     R  		MOV		hijack_Rx_Count,A
+ 320  00AF  1F00     R  		CLR		hijack_Receive_DataH
+ 321  00B0  1F00     R  		CLR		hijack_Receive_DataL
+ 322  00B1  1F00     R  		CLR		hijack_Rx_Parity_Count
+ 323  00B2  0003        		RET										
+ 324  00B3              hijack_Rx_ByteEnter:
+ 325  00B3  1780     R  		SDZ 	hijack_Rx_Count 	;16bit值是否已經讀取完成	
+ 326  00B4  2800     R  		JMP		hijack_Rx_Byte_LOOP
+ 327  00B5  3000     R  		SET		F_CompleteRx1Bit
+ 328  00B6  3000     R  		SET		F_Parity_StopMode	;進入下一個模式
+ 329  00B7  3400     R  		CLR		F_ByteMode			
+ 330  00B8  0003        		RET
+ 331  00B9              hijack_Rx_Byte_LOOP:
+ 332  00B9  340A        		CLR		C
+ 333  00BA  1A80     R  		RLC		hijack_Receive_DataL
+ 334  00BB  1A80     R  		RLC		hijack_Receive_DataH		
+ 335  00BC              		
+ 336  00BC  3800     R  		SNZ		F_0or1Bit
+ 337  00BD  2800     R  		JMP		hijack_Low
+ 338  00BE  2800     R  		JMP		hijack_High
+ 339  00BF              hijack_High:
+ 340  00BF  1480     R  		INC		hijack_Rx_Parity_Count
+ 341  00C0  3000     R  		SET		hijack_Receive_DataL.0
+ 342  00C1  2800     R  		JMP		hijack_Next_Bit
+ 343  00C2              hijack_Low:
+ 344  00C2  3400     R  		CLR		hijack_Receive_DataL.0
+ 345  00C3              hijack_Next_Bit:
+ 346  00C3  0003        		RET
+ 347  00C4              _hijack_Rx_Byte ENDP
+ 348  00C4              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 349  00C4              _hijack_Rx_1Bit PROC
+"File: hijack.asm    Assembler  Version 2.93      Page 7
+
+ 350  00C4  3A11        		SNZ		STMP0F
+ 351  00C5  2800     R  		JMP		CCRA_interrupt
+ 352  00C6              CCRP_interrupt:					
+ 353  00C6  3611        		CLR		STMP0F
+ 354  00C7  1480     R  		INC		hijack_CCRP_count
+ 355  00C8  0700     R  		MOV		A,hijack_CCRP_count
+ 356  00C9  0C28        		XOR		A,hijack_Time_Out		
+ 357  00CA  390A        		SNZ		Z
+ 358  00CB  0003        		RET
+ 359  00CC  2800     R  		JMP		_hijack_Rx_1Bit_Error ;超出時間，錯誤
+ 360  00CD              CCRA_interrupt:
+ 361  00CD  3A91        		SNZ		STMA0F
+ 362  00CE  2800     R  		JMP		_hijack_Rx_1Bit_Error ;不是CCRA 中斷也不是CCRP中斷，錯誤
+ 363  00CF  3691        		CLR		STMA0F
+ 364  00D0              ;		INC		TEST_COUNT
+ 365  00D0  0F08        		MOV		A,00001000B
+ 366  00D1  0494        		XORM	A,PA
+ 367  00D2  3C00     R  		SZ		F_First_CCRA
+ 368  00D3  2800     R  		JMP		Second_CCRA
+ 369  00D4              First_CCRA:	;第一次CCRA中斷 上升沿									
+ 370  00D4  3000     R  		SET		F_First_CCRA
+ 371  00D5  072D        		MOV		A,STM0AH					;Save CCRA value
+ 372  00D6  0080     R  		MOV		high_CCRA1_H,A	
+ 373  00D7  072C        		MOV		A,STM0AL					
+ 374  00D8  0080     R  		MOV		high_CCRA1_L,A	
+ 375  00D9  0700     R  		MOV		A,hijack_CCRP_count
+ 376  00DA  0080     R  		MOV		hijack_Period_L,A			;保存CCRP 的計數值
+ 377  00DB  1F00     R  		CLR		hijack_CCRP_count
+ 378  00DC              ;		INC		TEST_COUNT
+ 379  00DC              ;計算週期
+ 380  00DC              ;N x 512-high_First_CCRA_Count + high_Second_CCRA_Count
+ 381  00DC              if stmCCRP_T==512
+ 382  00DC  0F09        		MOV		A,9
+ 383  00DD  0080     R  		MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+ 384  00DE              endif
+ 385  00DE              if stmCCRP_T==256
+ 386  00DE              		MOV		A,8
+ 387  00DE              		MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+ 388  00DE              endif
+ 389  00DE              $0:
+ 390  00DE  340A        		CLR		C 							;移位進行乘法運算
+ 391  00DF  1A80     R  		RLC		hijack_Period_L
+ 392  00E0  1A80     R  		RLC		hijack_Period_H	
+ 393  00E1  1780     R  		SDZ		hijack_temp_count1
+ 394  00E2  2800     R  		JMP		$0		
+ 395  00E3  340A        		CLR		C							
+ 396  00E4  0700     R  		MOV		A,high_CCRA1_L				;加上第二次取得的CCRA 的值
+ 397  00E5  0380     R  		ADDM	A,hijack_Period_L
+ 398  00E6  0700     R  		MOV		A,high_CCRA1_H
+ 399  00E7  1380     R  		ADCM	A,hijack_Period_H		
+ 400  00E8  340A        		CLR		C 
+ 401  00E9  0700     R  		MOV		A,hijack_Period_L			;減去第一次取得的 CCRA 的值
+ 402  00EA  0200     R  		SUB		A,high_CCRA2_L
+ 403  00EB  0080     R  		MOV		hijack_Period_L,A
+ 404  00EC  0700     R  		MOV		A,hijack_Period_H
+ 405  00ED  1200     R  		SBC		A,high_CCRA2_H
+ 406  00EE  0080     R  		MOV		hijack_Period_H,A		
+ 407  00EF              
+ 408  00EF  2800     R  		JMP		hijack_Period					
+ 409  00F0              Second_CCRA:;第二次CCRA中斷 上升沿
+"File: hijack.asm    Assembler  Version 2.93      Page 8
+
+ 410  00F0  3400     R  		CLR		F_First_CCRA
+ 411  00F1  072D        		MOV		A,STM0AH					;Save CCRA value
+ 412  00F2  0080     R  		MOV		high_CCRA2_H,A	;
+ 413  00F3  072C        		MOV		A,STM0AL					;
+ 414  00F4  0080     R  		MOV		high_CCRA2_L,A	;
+ 415  00F5  0700     R  		MOV		A,hijack_CCRP_count
+ 416  00F6  0080     R  		MOV		hijack_Period_L,A			;保存CCRP 的計數值
+ 417  00F7  1F00     R  		CLR		hijack_CCRP_count
+ 418  00F8              ;		INC		TEST_COUNT		
+ 419  00F8              ;計算週期
+ 420  00F8              ;N x 512-high_First_CCRA_Count + high_Second_CCRA_Count
+ 421  00F8              if stmCCRP_T==512
+ 422  00F8  0F09        		MOV		A,9
+ 423  00F9  0080     R  		MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+ 424  00FA              endif
+ 425  00FA              if stmCCRP_T==256
+ 426  00FA              		MOV		A,8
+ 427  00FA              		MOV		hijack_temp_count1,A 		;根據CCRP 的值修改移位的值
+ 428  00FA              endif
+ 429  00FA              $0:
+ 430  00FA  340A        		CLR		C 							;移位進行乘法運算
+ 431  00FB  1A80     R  		RLC		hijack_Period_L
+ 432  00FC  1A80     R  		RLC		hijack_Period_H	
+ 433  00FD  1780     R  		SDZ		hijack_temp_count1
+ 434  00FE  2800     R  		JMP		$0		
+ 435  00FF  340A        		CLR		C							
+ 436  0100  0700     R  		MOV		A,high_CCRA2_L				;加上第二次取得的CCRA 的值
+ 437  0101  0380     R  		ADDM	A,hijack_Period_L
+ 438  0102  0700     R  		MOV		A,high_CCRA2_H
+ 439  0103  1380     R  		ADCM	A,hijack_Period_H		
+ 440  0104  340A        		CLR		C 
+ 441  0105  0700     R  		MOV		A,hijack_Period_L			;減去第一次取得的 CCRA 的值
+ 442  0106  0200     R  		SUB		A,high_CCRA1_L
+ 443  0107  0080     R  		MOV		hijack_Period_L,A
+ 444  0108  0700     R  		MOV		A,hijack_Period_H
+ 445  0109  1200     R  		SBC		A,high_CCRA1_H
+ 446  010A  0080     R  		MOV		hijack_Period_H,A		
+ 447  010B              hijack_Period:		
+ 448  010B              ;判斷是否是0
+ 449  010B              hijack_Period_0:
+ 450  010B              ;		INC		TEST_COUNT				
+ 451  010B  0700     R  		MOV		A,hijack_Period_H
+ 452  010C  0C05        		XOR		A,5					;hijack_Period0_Max 高八位
+ 453  010D  390A        		SNZ		Z
+ 454  010E  2800     R  		JMP		hijack_Period_1				;高Byte不相等，判斷是否為Bit 1
+ 455  010F              ;高位相等，判斷低八位是否在容差範圍內		
+ 456  010F  0700     R          MOV     A,hijack_Period_L
+ 457  0110  0AD5                SUB     A,94H +Tolerance 
+ 458  0111  3C0A                SZ      C		
+ 459  0112  2800     R  		JMP		_hijack_Rx_1Bit_Error		;週期太大錯誤
+ 460  0113  0700     R          MOV     A,hijack_Period_L
+ 461  0114  0A53                SUB     A,94H - Tolerance 
+ 462  0115  380A                SNZ      C			
+ 463  0116  2800     R  		JMP		_hijack_Rx_1Bit_Error		;週期太小錯誤
+ 464  0117  3400     R  		CLR		F_0or1Bit					;由週期判斷為Bit 0
+ 465  0118  2800     R  		JMP		_hijack_Rx_1Bit_RET
+ 466  0119              hijack_Period_1:	;是否在294H~316H之間		
+ 467  0119  0700     R  		MOV		A,hijack_Period_H
+ 468  011A  0C02        		XOR		A,2					;hijack_Period1_Max 高八位
+ 469  011B  3D0A        		SZ		Z
+"File: hijack.asm    Assembler  Version 2.93      Page 9
+
+ 470  011C  2800     R  		JMP		highByte2				;==2，判斷是否在294~300之間
+ 471  011D              ;是否==3
+ 472  011D  0700     R  		MOV		A,hijack_Period_H
+ 473  011E  0C03        		XOR		A,3					;hijack_Period1_Max 高八位
+ 474  011F  3D0A        		SZ		Z
+ 475  0120  2800     R  		JMP		highByte3	
+ 476  0121  2800     R  		JMP		_hijack_Rx_1Bit_Error	;高Byte既不是2也不是3，錯誤
+ 477  0122              highByte3: ;300~316H
+ 478  0122  0700     R          MOV     A,hijack_Period_L
+ 479  0123  0A16                SUB     A,016H
+ 480  0124  3C0A                SZ      C
+ 481  0125  2800     R          JMP		_hijack_Rx_1Bit_Error
+ 482  0126  2800     R          JMP		thisis1		
+ 483  0127              highByte2:		
+ 484  0127              ;294H~300H之間
+ 485  0127  0700     R          MOV     A,hijack_Period_L
+ 486  0128  0A94                SUB     A,094H
+ 487  0129  380A                SNZ      C
+ 488  012A  2800     R          JMP		_hijack_Rx_1Bit_Error
+ 489  012B  2800     R          JMP		thisis1
+ 490  012C              thisis1:
+ 491  012C  3000     R  		SET		F_0or1Bit
+ 492  012D  2800     R  		JMP		_hijack_Rx_1Bit_RET				
+ 493  012E              
+ 494  012E              _hijack_Rx_1Bit_RET:
+ 495  012E  3000     R  		SET		F_CompleteRx1Bit		
+ 496  012F  0003        		RET
+ 497  0130              _hijack_Rx_1Bit_Error:
+ 498  0130  3000     R  		SET		F_hijack_Rx_Error		;CCRP 連續發生的次數超過設定值(週期時間太長 Error)
+ 499  0131  0003        		RET								;置錯誤標誌位
+ 500  0132              _hijack_Rx_1Bit ENDP
+ 501  0132              
+ 502  0132              
+ 503  0132              
+ 504  0132              	
+ 505  0132              
+ 506  0132              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 507  0132              _hijack_init PROC
+ 508  0132              if stmCCRP_T==512
+ 509  0132  0F04        		MOV		A,00000100B	;4/fsys  512 CCRP interrput
+ 510  0133  00A8        		MOV		STM0C0,A
+ 511  0134              endif
+ 512  0134              if stmCCRP_T==256
+ 513  0134              		MOV		A,00000010B	;4/fsys  512 CCRP interrput
+ 514  0134              		MOV		STM0C0,A
+ 515  0134              endif	
+ 516  0134  0F40        		MOV		A,01000000B	;輸入捕捉模式、上升沿觸發、P 清除time
+ 517  0135  00A9        		MOV		STM0C1,A
+ 518  0136              		
+ 519  0136  3315        		SET		hijack_channel_L_IO
+ 520  0137  3714        		CLR		hijack_channel_L
+ 521  0138              		
+ 522  0138  3618        		CLR		STP0IPS		;STP0I on PA6
+ 523  0139              		
+ 524  0139  3091        		SET		STMA0E		;開啟Timer 輸入捕捉模式中斷
+ 525  013A  3011        		SET		STMP0E
+ 526  013B  300F        		SET		MF0E
+ 527  013C  360F        		CLR		MF0F
+ 528  013D  3691        		CLR		STMA0F
+ 529  013E  3611        		CLR		STMP0F
+"File: hijack.asm    Assembler  Version 2.93      Page 10
+
+ 530  013F  31A8        		SET		ST0ON
+ 531  0140  300E        		SET		EMI
+ 532  0141  0003        		RET
+ 533  0142              _hijack_init ENDP
+ 534  0142              
+ 535  0142              
+ 536  0142              
+ 537  0142              
+ 538  0142              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 539  0142              _hijack_Send_Byte PROC
+ 540  0142              ;		local temp  D
+ 541  0142  3514         		CLR		hijack_channel_MIC
+ 542  0143  0F08         		MOV		A,8 ;SET 8 BIT COUNTER
+ 543  0144  0080     R   		MOV		hijack_temp_count1,A
+ 544  0145              hijack_send_8bitloop:
+ 545  0145  3C00     R  		SZ		hijack_temp_Byte.7
+ 546  0146  2800     R  		JMP		hijack_send_high
+ 547  0147  2800     R  		JMP		hijack_send_low
+ 548  0148              hijack_send_high:
+ 549  0148  1480     R  		INC		hijack_temp_count2		;奇校驗
+ 550  0149  3114        		SET		hijack_channel_MIC
+ 551  014A              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 552  014E  3514        		CLR		hijack_channel_MIC
+ 553  014F              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 554  0153  2800     R  		JMP		hijack_send_Next_Bit	
+ 555  0154              hijack_send_low:		
+ 556  0154  3114        		SET		hijack_channel_MIC	;
+ 557  0155              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 558  0159  3514        		CLR		hijack_channel_MIC
+ 559  015A              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 		
+ 560  015E              hijack_send_Next_Bit:
+ 561  015E  1880     R  		RL		hijack_temp_Byte
+ 562  015F  1780     R  		SDZ		hijack_temp_count1
+ 563  0160  2800     R  		JMP		hijack_send_8bitloop
+ 564  0161              
+ 565  0161              _hijack_Send_Byte_RET:
+ 566  0161  0003        		RET 
+ 567  0162              _hijack_Send_Byte ENDP
+ 568  0162              ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@	
+ 569  0162              hijack_send_odd_Bit PROC
+ 570  0162  3C00     R  		SZ		hijack_temp_count2.0
+ 571  0163  2800     R  		JMP		hijack_send_odd_Bit_Low
+ 572  0164              ;		JMP		hijack_odd_Bit_high	
+ 573  0164              hijack_send_odd_Bit_high:
+ 574  0164  3114        		SET		hijack_channel_MIC
+ 575  0165              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 576  0169  3514        		CLR		hijack_channel_MIC
+ 577  016A              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 578  016E  2800     R  		JMP		hijack_send_odd_Bit_RET		
+ 579  016F              hijack_send_odd_Bit_Low:
+ 580  016F  3114        		SET		hijack_channel_MIC	;
+ 581  0170              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 582  0174  3514        		CLR		hijack_channel_MIC
+ 583  0175              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 584  0179              hijack_send_odd_Bit_RET:
+ 585  0179  0003        		RET 							
+ 586  017A              hijack_send_odd_Bit ENDP
+ 587  017A              ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 588  017A              _hijack_Send_Bias PROC
+ 589  017A              ;用於先建立bias
+"File: hijack.asm    Assembler  Version 2.93      Page 11
+
+ 590  017A  0F0C         		MOV		A,12 ;SET 8 BIT COUNTER
+ 591  017B  0080     R   		MOV		hijack_temp_count1,A
+ 592  017C              $1:		
+ 593  017C  3114        		SET		hijack_channel_MIC	;
+ 594  017D              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 595  0181  3514        		CLR		hijack_channel_MIC
+ 596  0182              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值 		
+ 597  0186  1780     R  		SDZ		hijack_temp_count1
+ 598  0187  2800     R  		JMP		$1					
+ 599  0188  0003        		RET
+ 600  0189              _hijack_Send_Bias ENDP
+ 601  0189              ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 602  0189              _hijack_Send_Idle PROC
+ 603  0189              ;,3bit 1頻率的idle信號，用於信號發送的開始和結束
+ 604  0189  0F03         		MOV		A,3 					;SET 8 BIT COUNTER
+ 605  018A  0080     R   		MOV		hijack_temp_count1,A
+ 606  018B              $1: 		
+ 607  018B  3114        		SET		hijack_channel_MIC	;
+ 608  018C              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 609  0190  3514        		CLR		hijack_channel_MIC
+ 610  0191              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 611  0195  1780     R  		SDZ		hijack_temp_count1
+ 612  0196  2800     R  		JMP		$1
+ 613  0197  0003        		RET	
+ 614  0198              _hijack_Send_Idle ENDP
+ 615  0198              ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 616  0198              _hijack_Send_Start PROC
+ 617  0198              ;1bit 0頻率 用於開始信號,		
+ 618  0198  3114        		SET		hijack_channel_MIC	;
+ 619  0199              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 620  019D  3514        		CLR		hijack_channel_MIC
+ 621  019E              		DELAY	fskDelaycount0/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 622  01A2  0003        		RET	
+ 623  01A3              _hijack_Send_Start ENDP
+ 624  01A3              ;;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 625  01A3              _hijack_Send_Stop PROC
+ 626  01A3              ;1bit 1頻率用於結束信號,		
+ 627  01A3  3114        		SET		hijack_channel_MIC	;
+ 628  01A4              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 629  01A8  3514        		CLR		hijack_channel_MIC
+ 630  01A9              		DELAY	fskDelaycount1/3		;Delay延遲了3倍，so fskDelaycount0/3為正確值
+ 631  01AD  0003        		RET	
+ 632  01AE              _hijack_Send_Stop ENDP
+
+
+        0 Errors, 0 Warnings

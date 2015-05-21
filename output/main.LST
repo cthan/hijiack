@@ -1,0 +1,190 @@
+"File: main.asm      Assembler  Version 2.93      Page 1
+
+
+   1  0000              ;___________________________________________________________________
+   2  0000              ;___________________________________________________________________
+   3  0000              ;Copyright :    2015 by HOLTEK SEMICONDUCTOR INC
+   4  0000              ;File Name :    main.asm
+   5  0000              ;Targer :       hijack Board
+   6  0000              ;MCU :          HT68F002
+   7  0000              ;Version :      V00
+   8  0000              ;Author :       ChenTing
+   9  0000              ;Date :         2015/04/10
+  10  0000              ;Description :  hijack 音頻通信測試
+  11  0000              ;History : 
+  12  0000              ;___________________________________________________________________
+  13  0000              ;___________________________________________________________________
+  14  0000              
+  15  0000              include config.inc
+
+
+
+
+
+
+  16  0000              include target.inc
+
+
+  17  0000              include hijack.inc
+
+
+  18  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  19  0000              ;@------------------------Library API------------------------------@
+  20  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  21  0000              EXTERN  _CLEAR_RAM				:NEAR
+  22  0000              EXTERN  _INIT_PORT				:NEAR 
+  23  0000              EXTERN  _INIT_WDT				:NEAR
+  24  0000              EXTERN  _INIT_SysFrequency		:NEAR
+  25  0000              EXTERN  _INIT_LVD				:NEAR
+  26  0000              EXTERN  _IIC_INT_ISR			:NEAR
+  27  0000              EXTERN  _IIC_init				:NEAR
+  28  0000              
+  29  0000              EXTERN  _hijack_Receive			:NEAR
+  30  0000              EXTERN  _hijack_Send			:NEAR
+  31  0000              EXTERN  _hijack_init			:NEAR
+  32  0000              
+  33  0000              EXTERN	hijack_Receive_DataH	:BYTE
+  34  0000              EXTERN	hijack_Receive_DataL	:BYTE
+  35  0000              EXTERN	hijack_Send_Data_High	:BYTE
+  36  0000              EXTERN	hijack_Send_Data_Low	:BYTE
+  37  0000              EXTERN	IIC_Receive_Data_High	:BYTE
+  38  0000              EXTERN	IIC_Receive_Data_Low	:BYTE
+  39  0000              EXTERN	IIC_Send_Data_High 		:BYTE
+  40  0000              EXTERN	IIC_Send_Data_Low 		:BYTE
+  41  0000              EXTERN	IIC_RXok_Flag			:BIT
+  42  0000              EXTERN	IIC_TXok_Flag			:BIT
+  43  0000              EXTERN	Hijack_RxOk_Flag		:BIT
+  44  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  45  0000              ;@------------------------Library API------------------------------@
+  46  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  47  0000              public	F_EMI
+  48  0000              public	R_ATEMP
+  49  0000              public  R_STATUS
+"File: main.asm      Assembler  Version 2.93      Page 2
+
+  50  0000              public	Flag_SDA_Status
+  51  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  52  0000              ;@-----------------------------DATA--------------------------------@
+  53  0000              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+  54  0000              ds	.section	'data'    
+  55  0000  00          F_EMI					DBIT
+  56  0000              Flag_SDA_Status			DBIT
+  57  0001  00          R_ATEMP					DB	?
+  58  0002  00          R_STATUS				DB	?
+  59  0003              
+  60  0003              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  61  0003              ;@-----------------------------CODE--------------------------------@
+  62  0003              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  63  0000              cs	.section	at  000h	'code'
+  64  0000                      ORG     START_VECTOR
+  65  0000  3A8A                SNZ     TO
+  66  0001  2819                JMP     POWER_ON
+  67  0002  2828                JMP     MAIN
+  68  0003              ;ISR VECTOR Defination
+  69  0003                      ORG     INT0_VECTOR
+  70  0004  2800     E          JMP		_IIC_INT_ISR		;IIC從機子程序
+  71  0005  0004                RETI
+  72  0006              ;
+  73  0006                      ORG		Timebase0_VECTOR 
+  74  0008  0004                RETI
+  75  0009              ;
+  76  0009              		ORG		Timebase1_VECTOR
+  77  000C  0004        		RETI
+  78  000D              ;
+  79  000D              		ORG		M_FUNCTION0_VECTOR
+  80  0010  2800     E  		JMP		_hijack_Receive
+  81  0011  0004        		RETI
+  82  0012              ;
+  83  0012              		ORG		EEPROM_VECTOR
+  84  0014  0004        		RETI
+  85  0015              ;
+  86  0015              		ORG		ADC_VECTOR
+  87  0018  0004        		RETI
+  88  0019              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  89  0019              					;---------Power ON-------------;
+  90  0019              POWER_ON:
+  91  0019  2000     E  		CALL	_CLEAR_RAM
+  92  001A  2000     E  		CALL	_INIT_PORT
+  93  001B  2000     E  		CALL	_INIT_WDT
+  94  001C  2000     E  		CALL	_INIT_SysFrequency
+  95  001D  2000     E  		CALL	_INIT_LVD
+  96  001E  2000     E  		CALL	_IIC_init
+  97  001F  2000     E  		CALL	_hijack_init
+  98  0020  0F00        		MOV		A,000H
+  99  0021  0080     E  		MOV		IIC_Send_Data_High,A
+ 100  0022  3595        		CLR		PAC3
+ 101  0023  3194        		SET		PA3
+ 102  0024  0F58        		MOV		A,058H
+ 103  0025  0080     E  		MOV		hijack_Send_Data_High,A
+ 104  0026  0F14        		MOV		A,014H
+ 105  0027  0080     E  		MOV		hijack_Send_Data_Low,A
+ 106  0028              		
+ 107  0028              MAIN:
+ 108  0028              ;單純測試hijack發送到手機上
+ 109  0028              ;		CLR		WDT
+"File: main.asm      Assembler  Version 2.93      Page 3
+
+ 110  0028              ;		CLR		WDT1
+ 111  0028              ;		CLR		WDT2
+ 112  0028              ;		
+ 113  0028              ;		CALL	_hijack_Send
+ 114  0028              ;		INC		hijack_Send_Data_Low
+ 115  0028              ;		JMP		Main
+ 116  0028              
+ 117  0028              ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 118  0028              ;判斷進入IIC中斷前SDA的狀態，用於判斷Start信號和stop信號		
+ 119  0028  3295        		SET		IIC_SDA_IO
+ 120  0029  3A94        		SNZ		IIC_SDA
+ 121  002A  282E        		JMP		SDA_LOW0
+ 122  002B  282C        		JMP		SDA_High0
+ 123  002C              SDA_High0:
+ 124  002C  3000     R  		SET		Flag_SDA_Status
+ 125  002D  282F        		JMP		Main_LOOP
+ 126  002E              SDA_LOW0:
+ 127  002E  3400     R  		CLR		Flag_SDA_Status
+ 128  002F              Main_LOOP:		
+ 129  002F  0001        		CLR		WDT
+ 130  0030  0001        		CLR		WDT1
+ 131  0031  0005        		CLR		WDT2
+ 132  0032              ;IIC接收成功，將數據用hijack發送出去			
+ 133  0032  3C00     E  		SZ		IIC_RXok_Flag
+ 134  0033  283D        		JMP		Movedata2Hijack	
+ 135  0034              ;hijack接收成功，將數據發送IIC中，提供給主機讀取		
+ 136  0034  3C00     E  		SZ		Hijack_RxOk_Flag
+ 137  0035  2837        		JMP		Movedata2IIC
+ 138  0036  2828        		JMP		MAIN
+ 139  0037              		
+ 140  0037              Movedata2IIC:
+ 141  0037  3400     E  		CLR		Hijack_RxOk_Flag
+ 142  0038  0700     E  		MOV		A,hijack_Receive_DataH
+ 143  0039  0080     E  		MOV		IIC_Send_Data_High,A
+ 144  003A  0700     E  		MOV		A,hijack_Receive_DataL
+ 145  003B  0080     E  		MOV		IIC_Send_Data_Low,A
+ 146  003C  2828        		JMP		MAIN
+ 147  003D              Movedata2Hijack:
+ 148  003D  3400     E  		CLR		IIC_RXok_Flag
+ 149  003E  0700     E  		MOV		A,IIC_Receive_Data_High
+ 150  003F  0080     E  		MOV		hijack_Send_Data_High,A
+ 151  0040  0700     E  		MOV		A,IIC_Receive_Data_Low
+ 152  0041  0080     E  		MOV		hijack_Send_Data_Low,A
+ 153  0042  2000     E  		CALL	_hijack_Send
+ 154  0043  2828        		JMP		MAIN
+ 155  0044              		
+ 156  0044              		
+ 157  0044              ;Read_SDA_Status	PROC
+ 158  0044              ;		SET		IIC_SDA_IO
+ 159  0044              ;		SNZ		IIC_SDA
+ 160  0044              ;		JMP		SDA_LOW
+ 161  0044              ;		JMP		SDA_High
+ 162  0044              ;SDA_High:
+ 163  0044              ;		SET		Flag_SDA_Status
+ 164  0044              ;		RET
+ 165  0044              ;SDA_LOW:
+ 166  0044              ;		CLR		Flag_SDA_Status
+ 167  0044              ;		RET
+ 168  0044              ;Read_SDA_Status	ENDP		
+
+"File: main.asm      Assembler  Version 2.93      Page 4
+
+
+        0 Errors, 0 Warnings

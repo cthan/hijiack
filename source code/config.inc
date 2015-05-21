@@ -17,9 +17,11 @@ include MACRO.inc
 ;#define OPA1_Enable
 ;#define	OPA2_Enable
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#define SysFrequency	4000000
-#define Enable			1
-#define Disable			0
+#define SysFrequency			4000000
+#define IIC_Device_Addr_Default 028H
+#define IIC_Time_Out_Count		200
+#define Enable					1
+#define Disable					0
 					;-----ISR VECTOR Defination------;
 ;中斷入口地址
 #define	START_VECTOR			000H		;主程序開始地址

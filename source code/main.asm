@@ -34,19 +34,26 @@ EXTERN	hijack_Receive_DataH	:BYTE
 EXTERN	hijack_Receive_DataL	:BYTE
 EXTERN	hijack_Send_Data_High	:BYTE
 EXTERN	hijack_Send_Data_Low	:BYTE
-EXTERN	IIC_Receive_Data 		:BYTE
-EXTERN	IIC_Send_Data 			:BYTE
+EXTERN	IIC_Receive_Data_High	:BYTE
+EXTERN	IIC_Receive_Data_Low	:BYTE
+EXTERN	IIC_Send_Data_High 		:BYTE
+EXTERN	IIC_Send_Data_Low 		:BYTE
+EXTERN	IIC_RXok_Flag			:BIT
+EXTERN	IIC_TXok_Flag			:BIT
+EXTERN	Hijack_RxOk_Flag		:BIT
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@------------------------Library API------------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 public	F_EMI
 public	R_ATEMP
 public  R_STATUS
+public	Flag_SDA_Status
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;@-----------------------------DATA--------------------------------@
 ;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
 ds	.section	'data'    
 F_EMI					DBIT
+Flag_SDA_Status			DBIT
 R_ATEMP					DB	?
 R_STATUS				DB	?
 
@@ -89,23 +96,73 @@ POWER_ON:
 		CALL	_IIC_init
 		CALL	_hijack_init
 		MOV		A,000H
-		MOV		IIC_Send_Data,A
+		MOV		IIC_Send_Data_High,A
 		CLR		PAC3
 		SET		PA3
-		MOV		A,0A5H
+		MOV		A,058H
 		MOV		hijack_Send_Data_High,A
-		MOV		A,05AH
+		MOV		A,014H
 		MOV		hijack_Send_Data_Low,A
 		
 MAIN:
+;單純測試hijack發送到手機上
+;		CLR		WDT
+;		CLR		WDT1
+;		CLR		WDT2
+;		
+;		CALL	_hijack_Send
+;		INC		hijack_Send_Data_Low
+;		JMP		Main
 
+;@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+;判斷進入IIC中斷前SDA的狀態，用於判斷Start信號和stop信號		
+		SET		IIC_SDA_IO
+		SNZ		IIC_SDA
+		JMP		SDA_LOW0
+		JMP		SDA_High0
+SDA_High0:
+		SET		Flag_SDA_Status
+		JMP		Main_LOOP
+SDA_LOW0:
+		CLR		Flag_SDA_Status
+Main_LOOP:		
 		CLR		WDT
 		CLR		WDT1
 		CLR		WDT2
-		NOP
-		CLR		EMI
-		CALL	_hijack_Send
-	
+;IIC接收成功，將數據用hijack發送出去			
+		SZ		IIC_RXok_Flag
+		JMP		Movedata2Hijack	
+;hijack接收成功，將數據發送IIC中，提供給主機讀取		
+		SZ		Hijack_RxOk_Flag
+		JMP		Movedata2IIC
 		JMP		MAIN
-
-
+		
+Movedata2IIC:
+		CLR		Hijack_RxOk_Flag
+		MOV		A,hijack_Receive_DataH
+		MOV		IIC_Send_Data_High,A
+		MOV		A,hijack_Receive_DataL
+		MOV		IIC_Send_Data_Low,A
+		JMP		MAIN
+Movedata2Hijack:
+		CLR		IIC_RXok_Flag
+		MOV		A,IIC_Receive_Data_High
+		MOV		hijack_Send_Data_High,A
+		MOV		A,IIC_Receive_Data_Low
+		MOV		hijack_Send_Data_Low,A
+		CALL	_hijack_Send
+		JMP		MAIN
+		
+		
+;Read_SDA_Status	PROC
+;		SET		IIC_SDA_IO
+;		SNZ		IIC_SDA
+;		JMP		SDA_LOW
+;		JMP		SDA_High
+;SDA_High:
+;		SET		Flag_SDA_Status
+;		RET
+;SDA_LOW:
+;		CLR		Flag_SDA_Status
+;		RET
+;Read_SDA_Status	ENDP		
